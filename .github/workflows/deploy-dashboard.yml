@@ -47,6 +47,7 @@ jobs:
         run: npm install
 
       - name: Build dashboard
+        working-directory: dotwatch-dashboard
         run: npm run build
 
       - name: Upload Pages artifact
