@@ -1,6 +1,4 @@
-import React from 'react'
 import { useEffect, useMemo, useState } from 'react'
-
 import {
   AreaChart,
   Area,
@@ -14,18 +12,47 @@ import {
 import { getDevices, getHistory } from '../services/api'
 
 const RANGE_OPTIONS = [
-  { label: '1 ชั่วโมง', value: '1h' },
-  { label: '6 ชั่วโมง', value: '6h' },
-  { label: '24 ชั่วโมง', value: '24h' },
-  { label: '7 วัน', value: '7d' },
-  { label: '30 วัน', value: '30d' },
-  { label: '1 ปี', value: '1y' },
+  { label: '24 ชั่วโมง', value: '24h', hours: 24 },
+  { label: '7 วัน', value: '7d', hours: 24 * 7 },
+  { label: '30 วัน', value: '30d', hours: 24 * 30 },
+  { label: '1 ปี', value: '1y', hours: 24 * 365 },
 ]
 
-function formatXAxis(value) {
-  const date = new Date(value)
+function getDateRange(hours) {
+  const to = new Date()
+  const from = new Date(to.getTime() - hours * 60 * 60 * 1000)
 
-  return date.toLocaleString('th-TH', {
+  return {
+    from: from.toISOString(),
+    to: to.toISOString(),
+  }
+}
+
+function normalizeHistory(rows) {
+  return rows
+    .map((item) => {
+      const rawTime = item.bucket_time || item.time || item.latest_time
+      const timestamp = new Date(rawTime).getTime()
+
+      return {
+        timestamp,
+        datetime: new Date(timestamp).toLocaleString('th-TH'),
+        temperature:
+          item.avg_temperature != null
+            ? Number(Number(item.avg_temperature).toFixed(1))
+            : null,
+        humidity:
+          item.avg_humidity != null
+            ? Number(Number(item.avg_humidity).toFixed(1))
+            : null,
+      }
+    })
+    .filter((item) => Number.isFinite(item.timestamp))
+    .sort((a, b) => a.timestamp - b.timestamp)
+}
+
+function formatXAxis(value) {
+  return new Date(value).toLocaleString('th-TH', {
     day: '2-digit',
     month: '2-digit',
     hour: '2-digit',
@@ -40,29 +67,9 @@ function getAverage(data, key) {
 
   if (values.length === 0) return '--'
 
-  const total = values.reduce((sum, value) => sum + value, 0)
-  return (total / values.length).toFixed(1)
-}
-
-function normalizeHistory(rows) {
-  return rows
-    .map((item) => {
-      const rawTime = item.time || item.created_at || item.createdAt
-      const timestamp = new Date(rawTime).getTime()
-
-      return {
-        timestamp,
-        datetime: new Date(timestamp).toLocaleString('th-TH'),
-        temperature:
-          item.temperature != null
-            ? Number(Number(item.temperature).toFixed(1))
-            : null,
-        humidity:
-          item.humidity != null ? Number(Number(item.humidity).toFixed(1)) : null,
-      }
-    })
-    .filter((item) => Number.isFinite(item.timestamp))
-    .sort((a, b) => a.timestamp - b.timestamp)
+  return (values.reduce((sum, value) => sum + value, 0) / values.length).toFixed(
+    1
+  )
 }
 
 function ChartWidget() {
@@ -72,8 +79,10 @@ function ChartWidget() {
   const [chartData, setChartData] = useState([])
   const [loading, setLoading] = useState(false)
 
+  const selectedRange = RANGE_OPTIONS.find((item) => item.value === range)
+
   const selectedDeviceName = useMemo(() => {
-    const device = devices.find((item) => item.id === selectedDeviceId)
+    const device = devices.find((item) => String(item.id) === selectedDeviceId)
     return device?.name || selectedDeviceId || 'device'
   }, [devices, selectedDeviceId])
 
@@ -82,12 +91,12 @@ function ChartWidget() {
   async function loadDevices() {
     try {
       const data = await getDevices()
-      const deviceList = Array.isArray(data) ? data : []
+      const list = Array.isArray(data) ? data : []
 
-      setDevices(deviceList)
+      setDevices(list)
 
-      if (!selectedDeviceId && deviceList.length > 0) {
-        setSelectedDeviceId(deviceList[0].id)
+      if (!selectedDeviceId && list.length > 0) {
+        setSelectedDeviceId(String(list[0].id))
       }
     } catch (error) {
       console.error('Load chart devices error:', error)
@@ -95,13 +104,19 @@ function ChartWidget() {
     }
   }
 
-  async function loadHistory(deviceId, selectedRange) {
+  async function loadHistory(deviceId, selectedRangeValue) {
     if (!deviceId) return
 
     try {
       setLoading(true)
 
-      const data = await getHistory(deviceId, selectedRange)
+      const option =
+        RANGE_OPTIONS.find((item) => item.value === selectedRangeValue) ||
+        RANGE_OPTIONS[0]
+
+      const { from, to } = getDateRange(option.hours)
+
+      const data = await getHistory(deviceId, from, to)
       const points = normalizeHistory(Array.isArray(data) ? data : [])
 
       setChartData(points)
@@ -131,15 +146,15 @@ function ChartWidget() {
     return () => clearInterval(timer)
   }, [selectedDeviceId, range])
 
-  const exportCSV = () => {
+  function exportCSV() {
     if (chartData.length === 0) return
 
     const headers = ['datetime', 'temperature', 'humidity']
 
     const rows = chartData.map((row) => [
       row.datetime,
-      row.temperature != null ? Number(row.temperature).toFixed(1) : '',
-      row.humidity != null ? Number(row.humidity).toFixed(1) : '',
+      row.temperature ?? '',
+      row.humidity ?? '',
     ])
 
     const csvContent = [
@@ -167,7 +182,7 @@ function ChartWidget() {
         <div className="realtime-graph-header">
           <div className="realtime-graph-title">
             <h2>Real Time Graph</h2>
-            <p>กราฟข้อมูล Sensor จาก TimescaleDB</p>
+            <p>History จาก TimescaleDB</p>
           </div>
 
           <div className="realtime-graph-stats">
@@ -281,8 +296,8 @@ function ChartWidget() {
           <select
             className="device-select clean-select"
             value={selectedDeviceId}
-            onChange={(e) => {
-              setSelectedDeviceId(e.target.value)
+            onChange={(event) => {
+              setSelectedDeviceId(event.target.value)
               setChartData([])
             }}
           >
@@ -290,8 +305,8 @@ function ChartWidget() {
               <option value="">ยังไม่มี Device</option>
             ) : (
               devices.map((device) => (
-                <option key={device.id} value={device.id}>
-                  {device.name || device.id}
+                <option key={device.id} value={String(device.id)}>
+                  {device.name || device.device_code}
                 </option>
               ))
             )}
@@ -300,8 +315,8 @@ function ChartWidget() {
           <select
             className="range-select clean-select"
             value={range}
-            onChange={(e) => {
-              setRange(e.target.value)
+            onChange={(event) => {
+              setRange(event.target.value)
               setChartData([])
             }}
           >

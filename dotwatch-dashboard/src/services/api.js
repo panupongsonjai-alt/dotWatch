@@ -4,11 +4,7 @@ const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:4000'
 
 async function getToken() {
   const user = auth.currentUser
-
-  if (!user) {
-    throw new Error('User not logged in')
-  }
-
+  if (!user) throw new Error('User not logged in')
   return user.getIdToken()
 }
 
@@ -33,107 +29,38 @@ async function apiFetch(path, options = {}) {
   return data
 }
 
-function getRangeDate(range = '24h') {
-  const now = new Date()
-  const from = new Date(now)
-
-  switch (range) {
-    case '1h':
-      from.setHours(now.getHours() - 1)
-      break
-    case '6h':
-      from.setHours(now.getHours() - 6)
-      break
-    case '24h':
-      from.setHours(now.getHours() - 24)
-      break
-    case '7d':
-      from.setDate(now.getDate() - 7)
-      break
-    case '30d':
-      from.setDate(now.getDate() - 30)
-      break
-    case '1y':
-      from.setFullYear(now.getFullYear() - 1)
-      break
-    default:
-      from.setHours(now.getHours() - 24)
-  }
-
-  return {
-    from: from.toISOString(),
-    to: now.toISOString(),
-  }
-}
-
-function normalizeHistoryForOldChart(rows) {
-  return rows.map((item) => {
-    const time = item.bucket_time || item.time || item.created_at
-
-    return {
-      time,
-      created_at: time,
-      temperature:
-        item.avg_temperature != null
-          ? Number(item.avg_temperature)
-          : item.temperature != null
-            ? Number(item.temperature)
-            : null,
-      humidity:
-        item.avg_humidity != null
-          ? Number(item.avg_humidity)
-          : item.humidity != null
-            ? Number(item.humidity)
-            : null,
-      rssi:
-        item.avg_rssi != null
-          ? Number(item.avg_rssi)
-          : item.rssi != null
-            ? Number(item.rssi)
-            : null,
-    }
-  })
-}
-
 export function getDevices() {
   return apiFetch('/api/devices')
 }
 
-export function addDevice({ id, name, deviceKey, deviceCode, deviceSecret }) {
+export function addDevice({ deviceCode, name, deviceSecret }) {
   return apiFetch('/api/devices', {
     method: 'POST',
     body: JSON.stringify({
-      id,
+      deviceCode,
       name,
-      deviceCode: deviceCode || deviceKey,
       deviceSecret,
     }),
   })
 }
 
-export const createDevice = addDevice
-
-export function updateDeviceName(deviceId, name) {
-  return apiFetch(`/api/devices/${deviceId}`, {
+export function updateDeviceName(id, name) {
+  return apiFetch(`/api/devices/${id}`, {
     method: 'PUT',
     body: JSON.stringify({ name }),
   })
 }
 
-export function deleteDevice(deviceId) {
-  return apiFetch(`/api/devices/${deviceId}`, {
+export function deleteDevice(id) {
+  return apiFetch(`/api/devices/${id}`, {
     method: 'DELETE',
   })
 }
 
-export async function getHistory(deviceId, range = '24h') {
-  const { from, to } = getRangeDate(range)
+export function getHistory(deviceId, from, to) {
   const params = new URLSearchParams()
+  if (from) params.set('from', from)
+  if (to) params.set('to', to)
 
-  params.set('from', from)
-  params.set('to', to)
-
-  const data = await apiFetch(`/api/devices/${deviceId}/history?${params}`)
-
-  return normalizeHistoryForOldChart(Array.isArray(data) ? data : [])
+  return apiFetch(`/api/devices/${deviceId}/history?${params.toString()}`)
 }
