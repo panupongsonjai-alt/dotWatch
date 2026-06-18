@@ -2,6 +2,7 @@ import { z } from 'zod'
 import { pool } from '../db/pool.js'
 import { env } from '../config/env.js'
 import { broadcastToUser } from '../server.js'
+import { checkAlarms } from '../services/alarm.service.js'
 
 const ingestSchema = z.object({
   temperature: z.number().min(-40).max(125),
@@ -46,14 +47,16 @@ export async function ingestReading(req, res) {
 
     const deviceResult = await pool.query(
       `
-      UPDATE devices
+      UPDATE devices d
       SET
-        last_seen_at = now(),
-        last_ingest_at = now(),
-        status = 'online',
-        firmware_version = COALESCE($2, firmware_version)
-      WHERE id = $1
-      RETURNING id, user_id, device_code, name, status, last_seen_at, firmware_version
+      last_seen_at = now(),
+      last_ingest_at = now(),
+      status = 'online',
+      firmware_version = COALESCE($2, firmware_version)
+      FROM users u
+      WHERE d.id = $1
+      AND u.id = d.user_id
+      RETURNING d.id, d.user_id, u.firebase_uid, d.device_code, d.name, d.status, d.last_seen_at, d.firmware_version
       `,
       [device.id, data.firmwareVersion || null]
     )
@@ -63,11 +66,12 @@ export async function ingestReading(req, res) {
     const reading = readingResult.rows[0]
     const updatedDevice = deviceResult.rows[0]
 
-    broadcastToUser(updatedDevice.user_id, {
+    broadcastToUser(updatedDevice.firebase_uid, {
       type: 'reading',
       data: {
         id: updatedDevice.id,
         user_id: updatedDevice.user_id,
+        firebase_uid: updatedDevice.firebase_uid,
         device_code: updatedDevice.device_code,
         name: updatedDevice.name,
         status: updatedDevice.status,
@@ -79,6 +83,24 @@ export async function ingestReading(req, res) {
         rssi: reading.rssi,
       },
     })
+
+const alerts = await checkAlarms({
+  userId: updatedDevice.user_id,
+  deviceId: updatedDevice.id,
+  reading: {
+    time: reading.time,
+    temperature: reading.temperature,
+    humidity: reading.humidity,
+    rssi: reading.rssi,
+  },
+})
+
+if (alerts.length > 0) {
+  broadcastToUser(updatedDevice.firebase_uid, {
+    type: 'alarm',
+    data: alerts,
+  })
+}
 
     res.status(201).json({
       ok: true,

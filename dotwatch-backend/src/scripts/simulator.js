@@ -3,7 +3,7 @@
 const API_URL = 'http://localhost:4000/api/ingest'
 
 const DEVICE_ID = 'dotwatch-001'
-const DEVICE_SECRET = 'dotwatch-secret-001'
+const DEVICE_SECRET = 'e63f12334c02e9cd8bf85ca9d4498a9f62c4'
 
 function randomValue(min, max) {
   return Number((Math.random() * (max - min) + min).toFixed(1))

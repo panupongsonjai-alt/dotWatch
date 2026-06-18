@@ -2,13 +2,17 @@ import { useEffect, useState } from 'react'
 import { auth } from '../services/firebase'
 import DashboardDeviceCard from '../components/DashboardDeviceCard.jsx'
 import ChartWidget from '../components/ChartWidget.jsx'
-import { getDevices } from '../services/api'
+import AlarmPanel from '../components/AlarmPanel.jsx'
+import { getDevices, getAlarms } from '../services/api'
 import { connectRealtime, disconnectRealtime } from '../services/realtime'
+import { useAlarm } from '../context/AlarmContext'
 
 function Dashboard() {
   const [devices, setDevices] = useState([])
   const [projectName, setProjectName] = useState('dotWatch')
   const [loading, setLoading] = useState(true)
+  const [alarmCount, setAlarmCount] = useState(0)
+  const { addAlarm } = useAlarm()
 
   async function loadDevices() {
     try {
@@ -23,41 +27,60 @@ function Dashboard() {
     }
   }
 
+  async function loadAlarms() {
+    try {
+      const data = await getAlarms()
+      const activeCount = Array.isArray(data)
+        ? data.filter((alarm) => alarm.status === 'active').length
+        : 0
+
+      setAlarmCount(activeCount)
+    } catch (error) {
+      console.error(error)
+    }
+  }
+
   useEffect(() => {
     setProjectName(localStorage.getItem('projectName') || 'dotWatch')
     loadDevices()
+    loadAlarms()
 
     const user = auth.currentUser
 
     if (user) {
-      connectRealtime(user.uid, (reading) => {
-        setDevices((prevDevices) =>
-          prevDevices.map((device) =>
-            device.id === reading.id
-              ? {
-                  ...device,
-                  ...reading,
-                  temperature: reading.temperature,
-                  humidity: reading.humidity,
-                  latest_time: reading.latest_time,
-                  last_seen_at: reading.last_seen_at,
-                  status: reading.status || 'online',
-                }
-              : device
+      connectRealtime(user.uid, (payload) => {
+        if (payload.type === 'reading') {
+          const reading = payload.data
+
+          setDevices((prevDevices) =>
+            prevDevices.map((device) =>
+              device.id === reading.id
+                ? {
+                    ...device,
+                    ...reading,
+                  }
+                : device
+            )
           )
-        )
+        }
+
+        if (payload.type === 'alarm') {
+          payload.data.forEach((alarm) => {
+            addAlarm(alarm)
+          })
+
+          setAlarmCount((count) => count + payload.data.length)
+          console.warn('ALARM', payload.data)
+        }
       })
     }
 
     return () => {
       disconnectRealtime()
     }
-  }, [])
+  }, [addAlarm])
 
-  const onlineCount = devices.filter(
-    (device) => device.status === 'online'
-  ).length
-
+  const onlineCount = devices.filter((device) => device.status === 'online').length
   const offlineCount = devices.length - onlineCount
 
   return (
@@ -78,11 +101,18 @@ function Dashboard() {
           <strong>{loading ? '...' : offlineCount}</strong>
         </div>
 
+        <div className="summary-card alarm-summary-card">
+          <span>Active Alarms</span>
+          <strong>{alarmCount}</strong>
+        </div>
+
         <div className="summary-card">
           <span>Project</span>
           <strong>{projectName}</strong>
         </div>
       </section>
+
+      <AlarmPanel />
 
       <ChartWidget />
 

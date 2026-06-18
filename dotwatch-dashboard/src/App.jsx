@@ -1,48 +1,51 @@
 import React from 'react'
 import { useEffect, useState } from 'react'
-import { onAuthStateChanged, signOut } from "firebase/auth";
-import { auth } from "./services/firebase";
+import { onAuthStateChanged, signOut } from 'firebase/auth'
+import { auth } from './services/firebase'
 
-import Dashboard from "./pages/Dashboard";
-import Devices from "./pages/Devices";
-import Settings from "./pages/Settings";
-import Login from "./pages/Login";
-import Profile from "./pages/Profile";
+import Dashboard from './pages/Dashboard'
+import Devices from './pages/Devices'
+import Settings from './pages/Settings'
+import Login from './pages/Login'
+import Profile from './pages/Profile'
+import Alarms from './pages/Alarms.jsx'
+import AlarmToast from './components/AlarmToast.jsx'
+import AlarmRules from './pages/AlarmRules.jsx'
 
-import Sidebar from "./components/Sidebar";
-import Navbar from "./components/Navbar";
+import Sidebar from './components/Sidebar'
+import Navbar from './components/Navbar'
 
 function App() {
-  const [user, setUser] = useState(null);
-  const [page, setPage] = useState("dashboard");
-  const [loading, setLoading] = useState(true);
-  const [theme, setTheme] = useState(localStorage.getItem("theme") || "dark");
+  const [user, setUser] = useState(null)
+  const [page, setPage] = useState('dashboard')
+  const [loading, setLoading] = useState(true)
+  const [theme, setTheme] = useState(localStorage.getItem('theme') || 'dark')
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
-      setUser(currentUser);
-      setLoading(false);
-    });
+      setUser(currentUser)
+      setLoading(false)
+    })
 
-    return () => unsubscribe();
-  }, []);
+    return () => unsubscribe()
+  }, [])
 
   useEffect(() => {
-    document.documentElement.setAttribute("data-theme", theme);
-    localStorage.setItem("theme", theme);
-  }, [theme]);
+    document.documentElement.setAttribute('data-theme', theme)
+    localStorage.setItem('theme', theme)
+  }, [theme])
 
   const handleLogout = async () => {
-    await signOut(auth);
-    setPage("dashboard");
-  };
+    await signOut(auth)
+    setPage('dashboard')
+  }
 
   if (loading) {
-    return <div className="loading">Loading...</div>;
+    return <div className="loading">Loading...</div>
   }
 
   if (!user) {
-    return <Login />;
+    return <Login />
   }
 
   return (
@@ -57,13 +60,18 @@ function App() {
           setTheme={setTheme}
         />
 
-        {page === "dashboard" && <Dashboard />}
-        {page === "devices" && <Devices />}
-        {page === "profile" && <Profile />}
-        {page === "settings" && <Settings />}
+        {page === 'dashboard' && <Dashboard />}
+        {page === 'devices' && <Devices />}
+        {page === 'alarms' && <Alarms />}
+        {page === 'alarm-rules' && <AlarmRules />}
+        {page === 'profile' && <Profile />}
+        {page === 'settings' && <Settings />}
+
+        
+        <AlarmToast />
       </main>
     </div>
-  );
+  )
 }
 
-export default App;
+export default App

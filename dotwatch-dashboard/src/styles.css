@@ -1428,3 +1428,142 @@ select:focus {
 .dashboard-device-card .metric {
   min-height: 96px;
 }
+
+.alarm-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.alarm-card {
+  padding: 12px;
+  border-radius: 12px;
+}
+
+.alarm-card.warning {
+  background: rgba(245,158,11,.12);
+  border: 1px solid rgba(245,158,11,.3);
+}
+
+.alarm-card.critical {
+  background: rgba(239,68,68,.12);
+  border: 1px solid rgba(239,68,68,.3);
+}
+
+.alarm-badge {
+  margin-left: auto;
+  min-width: 22px;
+  height: 22px;
+  padding: 0 7px;
+  border-radius: 999px;
+  background: #ef4444;
+  color: #ffffff;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.alarm-toast-wrap {
+  position: fixed;
+  right: 24px;
+  bottom: 24px;
+  z-index: 9999;
+  display: grid;
+  gap: 12px;
+  width: min(360px, calc(100vw - 32px));
+}
+
+.alarm-toast {
+  position: relative;
+  padding: 16px 44px 16px 16px;
+  border-radius: 16px;
+  background: var(--panel);
+  color: var(--text);
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow);
+}
+
+.alarm-toast.critical {
+  border-color: rgba(239, 68, 68, 0.4);
+  background: rgba(239, 68, 68, 0.12);
+}
+
+.alarm-toast.warning {
+  border-color: rgba(245, 158, 11, 0.4);
+  background: rgba(245, 158, 11, 0.12);
+}
+
+.alarm-toast strong {
+  display: block;
+  margin-bottom: 6px;
+}
+
+.alarm-toast p {
+  margin: 0 0 6px;
+}
+
+.alarm-toast small {
+  color: var(--muted);
+}
+
+.alarm-toast-close {
+  position: absolute;
+  top: 10px;
+  right: 12px;
+  border: 0;
+  background: transparent;
+  color: var(--text);
+  font-size: 22px;
+  line-height: 1;
+}
+
+.alarm-filter-row {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 20px;
+}
+
+.alarm-info {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.alarm-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  align-items: flex-end;
+}
+
+.rule-form {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 12px;
+  margin-bottom: 24px;
+}
+
+.rule-form select,
+.rule-form input {
+  width: 100%;
+}
+
+.rule-form {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 12px;
+  margin-bottom: 24px;
+}
+
+.rule-form select,
+.rule-form input {
+  width: 100%;
+}
+
+.alarm-card {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}

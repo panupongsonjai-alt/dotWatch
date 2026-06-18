@@ -2,7 +2,7 @@ const WS_URL = import.meta.env.VITE_WS_URL || 'ws://localhost:4000'
 
 let socket = null
 
-export function connectRealtime(userId, onReading) {
+export function connectRealtime(userId, onMessage) {
   if (!userId) return null
 
   socket = new WebSocket(WS_URL)
@@ -16,17 +16,17 @@ export function connectRealtime(userId, onReading) {
     )
   }
 
-  socket.onmessage = (event) => {
-    try {
-      const payload = JSON.parse(event.data)
+socket.onmessage = (event) => {
+  try {
+    const payload = JSON.parse(event.data)
 
-      if (payload.type === 'reading') {
-        onReading(payload.data)
-      }
-    } catch (error) {
-      console.error('Realtime message error:', error)
+    if (onMessage) {
+      onMessage(payload)
     }
+  } catch (error) {
+    console.error(error)
   }
+}
 
   socket.onerror = (error) => {
     console.error('WebSocket error:', error)

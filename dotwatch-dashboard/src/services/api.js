@@ -70,3 +70,38 @@ export function resetDeviceSecret(id) {
     method: 'POST',
   })
 }
+
+export function getAlarms() {
+  return apiFetch('/api/alarms')
+}
+
+export function acknowledgeAlarm(id) {
+  return apiFetch(`/api/alarms/${id}/acknowledge`, {
+    method: 'POST',
+  })
+}
+
+export function getAlarmRules() {
+  return apiFetch('/api/alarm-rules')
+}
+
+export function createAlarmRule(data) {
+  return apiFetch('/api/alarm-rules', {
+    method: 'POST',
+    body: JSON.stringify(data),
+  })
+}
+
+export function updateAlarmRule(id, data) {
+  return apiFetch(`/api/alarm-rules/${id}`, {
+    method: 'PUT',
+    body: JSON.stringify(data),
+  })
+}
+
+export function deleteAlarmRule(id) {
+  return apiFetch(`/api/alarm-rules/${id}`, {
+    method: 'DELETE',
+  })
+}
+

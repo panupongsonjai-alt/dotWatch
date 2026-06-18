@@ -10,6 +10,8 @@ import { devicesRouter } from './routes/devices.routes.js'
 import { ingestRouter } from './routes/ingest.routes.js'
 import { errorHandler } from './middlewares/errorHandler.js'
 import { markOfflineDevices } from './services/deviceStatus.service.js'
+import { alarmsRouter } from './routes/alarms.routes.js'
+import { alarmRulesRouter } from './routes/alarmRules.routes.js'
 
 const app = express()
 const server = http.createServer(app)
@@ -63,6 +65,8 @@ app.get('/health', (req, res) => {
 
 app.use('/api/devices', apiLimiter, devicesRouter)
 app.use('/api/ingest', ingestLimiter, ingestRouter)
+app.use('/api/alarms', apiLimiter, alarmsRouter)
+app.use('/api/alarm-rules',apiLimiter,alarmRulesRouter)
 
 setInterval(async () => {
   try {
@@ -77,3 +81,4 @@ app.use(errorHandler)
 server.listen(env.port, () => {
   console.log(`dotWatch backend running on port ${env.port}`)
 })
+
