@@ -9,6 +9,7 @@ import {
   XAxis,
   YAxis,
 } from 'recharts'
+import { Download, Droplets, Thermometer } from 'lucide-react'
 
 import { getDevices, getHistory } from '../services/api'
 
@@ -48,11 +49,9 @@ function getNumber(...values) {
 }
 
 function formatTime(value) {
-  if (!value) return '--'
-
   const date = new Date(value)
 
-  if (Number.isNaN(date.getTime())) return '--'
+  if (!value || Number.isNaN(date.getTime())) return '--'
 
   return date.toLocaleTimeString('th-TH', {
     hour: '2-digit',
@@ -90,9 +89,9 @@ function normalizeHistory(payload) {
     .slice(-MAX_POINTS)
 }
 
-function getDefaultRange() {
+function getRange(hours) {
   const to = new Date()
-  const from = new Date(to.getTime() - 24 * 60 * 60 * 1000)
+  const from = new Date(to.getTime() - hours * 60 * 60 * 1000)
 
   return {
     from: from.toISOString(),
@@ -100,21 +99,66 @@ function getDefaultRange() {
   }
 }
 
+function getStats(data, key) {
+  const values = data
+    .map((item) => item[key])
+    .filter((value) => value !== null && value !== undefined)
+
+  if (!values.length) {
+    return {
+      avg: null,
+      min: null,
+      max: null,
+    }
+  }
+
+  return {
+    avg: values.reduce((sum, value) => sum + value, 0) / values.length,
+    min: Math.min(...values),
+    max: Math.max(...values),
+  }
+}
+
+function CustomTooltip({ active, payload, label }) {
+  if (!active || !payload?.length) return null
+
+  return (
+    <div className="dw-chart-tooltip">
+      <strong>{label}</strong>
+
+      {payload.map((item) => (
+        <div key={item.dataKey} className="dw-tooltip-row">
+          <span
+            className="dw-tooltip-dot"
+            style={{ background: item.color }}
+          />
+          <span>{item.name}</span>
+          <b>
+            {Number(item.value).toFixed(1)}
+            {item.dataKey === 'temperature' ? ' °C' : ' %'}
+          </b>
+        </div>
+      ))}
+    </div>
+  )
+}
+
 function ChartWidget() {
   const [devices, setDevices] = useState([])
   const [selectedDeviceId, setSelectedDeviceId] = useState('')
+  const [rangeHours, setRangeHours] = useState(24)
   const [chartData, setChartData] = useState([])
-  const [chartSize, setChartSize] = useState('medium')
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
 
   const lastSignatureRef = useRef('')
 
-  const chartHeight = useMemo(() => {
-    if (chartSize === 'small') return 300
-    if (chartSize === 'large') return 520
-    return 420
-  }, [chartSize])
+  const stats = useMemo(() => {
+    return {
+      temperature: getStats(chartData, 'temperature'),
+      humidity: getStats(chartData, 'humidity'),
+    }
+  }, [chartData])
 
   async function loadDevices() {
     try {
@@ -142,7 +186,7 @@ function ChartWidget() {
     try {
       setError('')
 
-      const { from, to } = getDefaultRange()
+      const { from, to } = getRange(rangeHours)
       const payload = await getHistory(deviceId, from, to)
       const nextData = normalizeHistory(payload)
 
@@ -151,9 +195,7 @@ function ChartWidget() {
         ? `${latest.time}-${latest.temperature}-${latest.humidity}-${nextData.length}`
         : 'empty'
 
-      if (signature === lastSignatureRef.current) {
-        return
-      }
+      if (signature === lastSignatureRef.current) return
 
       lastSignatureRef.current = signature
       setChartData(nextData)
@@ -183,7 +225,7 @@ function ChartWidget() {
     }, 5000)
 
     return () => clearInterval(timer)
-  }, [selectedDeviceId])
+  }, [selectedDeviceId, rangeHours])
 
   function handleExportCSV() {
     if (!chartData.length) return
@@ -214,15 +256,15 @@ function ChartWidget() {
   }
 
   return (
-    <section className="chart-card">
-      <div className="chart-header">
+    <section className="dw-chart-card">
+      <div className="dw-chart-header">
         <div>
           <p className="section-eyebrow">Realtime Sensor Activity</p>
           <h2>Temperature & Humidity</h2>
           <span>แสดงข้อมูลล่าสุดจากอุปกรณ์แบบเรียลไทม์</span>
         </div>
 
-        <div className="chart-actions">
+        <div className="dw-chart-actions">
           <select
             value={selectedDeviceId}
             onChange={(event) => setSelectedDeviceId(event.target.value)}
@@ -242,22 +284,76 @@ function ChartWidget() {
           </select>
 
           <select
-            value={chartSize}
-            onChange={(event) => setChartSize(event.target.value)}
+            value={rangeHours}
+            onChange={(event) => setRangeHours(Number(event.target.value))}
           >
-            <option value="small">Small</option>
-            <option value="medium">Medium</option>
-            <option value="large">Large</option>
+            <option value={6}>6 ชั่วโมง</option>
+            <option value={12}>12 ชั่วโมง</option>
+            <option value={24}>24 ชั่วโมง</option>
+            <option value={168}>7 วัน</option>
           </select>
 
           <button
             type="button"
-            className="export-button"
+            className="dw-export-button"
             onClick={handleExportCSV}
             disabled={!chartData.length}
           >
+            <Download size={16} />
             Export CSV
           </button>
+        </div>
+      </div>
+
+      <div className="dw-average-grid">
+        <div className="dw-average-card">
+          <div className="dw-average-icon temp">
+            <Thermometer size={26} />
+          </div>
+
+          <div>
+            <span>อุณหภูมิเฉลี่ย</span>
+            <strong>
+              {stats.temperature.avg !== null
+                ? `${stats.temperature.avg.toFixed(1)} °C`
+                : '--'}
+            </strong>
+            <p>
+              ต่ำสุด{' '}
+              {stats.temperature.min !== null
+                ? `${stats.temperature.min.toFixed(1)} °C`
+                : '--'}{' '}
+              <b>|</b> สูงสุด{' '}
+              {stats.temperature.max !== null
+                ? `${stats.temperature.max.toFixed(1)} °C`
+                : '--'}
+            </p>
+          </div>
+        </div>
+
+        <div className="dw-average-card">
+          <div className="dw-average-icon hum">
+            <Droplets size={26} />
+          </div>
+
+          <div>
+            <span>ความชื้นเฉลี่ย</span>
+            <strong>
+              {stats.humidity.avg !== null
+                ? `${stats.humidity.avg.toFixed(1)} %`
+                : '--'}
+            </strong>
+            <p>
+              ต่ำสุด{' '}
+              {stats.humidity.min !== null
+                ? `${stats.humidity.min.toFixed(0)} %`
+                : '--'}{' '}
+              <b>|</b> สูงสุด{' '}
+              {stats.humidity.max !== null
+                ? `${stats.humidity.max.toFixed(0)} %`
+                : '--'}
+            </p>
+          </div>
         </div>
       </div>
 
@@ -274,84 +370,124 @@ function ChartWidget() {
       )}
 
       {!error && chartData.length > 0 && (
-        <div className="chart-wrapper" style={{ height: chartHeight }}>
+        <div className="dw-chart-wrapper">
           <ResponsiveContainer width="100%" height="100%">
             <AreaChart
               data={chartData}
               margin={{
-                top: 24,
+                top: 22,
                 right: 18,
-                left: -10,
-                bottom: 8,
+                left: -8,
+                bottom: 0,
               }}
             >
               <defs>
-                <linearGradient id="tempFill" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="#ef4444" stopOpacity={0.35} />
-                  <stop offset="95%" stopColor="#ef4444" stopOpacity={0} />
+                <linearGradient id="dwTempFill" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stopColor="#ef4444" stopOpacity={0.3} />
+                  <stop offset="100%" stopColor="#ef4444" stopOpacity={0.02} />
                 </linearGradient>
 
-                <linearGradient id="humFill" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="#2563eb" stopOpacity={0.35} />
-                  <stop offset="95%" stopColor="#2563eb" stopOpacity={0} />
+                <linearGradient id="dwHumFill" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stopColor="#3b82f6" stopOpacity={0.28} />
+                  <stop offset="100%" stopColor="#3b82f6" stopOpacity={0.02} />
                 </linearGradient>
               </defs>
 
-              <CartesianGrid strokeDasharray="3 3" vertical={false} />
+              <CartesianGrid
+                strokeDasharray="3 3"
+                vertical={false}
+                stroke="rgba(148, 163, 184, 0.18)"
+              />
 
               <XAxis
                 dataKey="label"
-                minTickGap={28}
                 tickLine={false}
                 axisLine={false}
-              />
-
-              <YAxis
-                tickLine={false}
-                axisLine={false}
-                width={42}
-                domain={['auto', 'auto']}
-              />
-
-              <Tooltip
-                animationDuration={0}
-                formatter={(value, name) => {
-                  if (name === 'Temperature') {
-                    return [`${Number(value).toFixed(1)} °C`, name]
-                  }
-
-                  if (name === 'Humidity') {
-                    return [`${Number(value).toFixed(1)} %`, name]
-                  }
-
-                  return [value, name]
+                minTickGap={30}
+                tick={{
+                  fontSize: 12,
+                  fill: 'rgba(226, 232, 240, 0.72)',
+                  fontWeight: 600,
                 }}
               />
 
-              <Legend verticalAlign="top" height={36} />
+              <YAxis
+                yAxisId="left"
+                tickLine={false}
+                axisLine={false}
+                width={34}
+                domain={['auto', 'auto']}
+                tick={{
+                  fontSize: 12,
+                  fill: '#f87171',
+                  fontWeight: 700,
+                }}
+              />
+
+              <YAxis
+                yAxisId="right"
+                orientation="right"
+                tickLine={false}
+                axisLine={false}
+                width={34}
+                domain={[0, 100]}
+                tick={{
+                  fontSize: 12,
+                  fill: '#60a5fa',
+                  fontWeight: 700,
+                }}
+              />
+
+              <Tooltip
+                content={<CustomTooltip />}
+                animationDuration={0}
+                cursor={{
+                  stroke: 'rgba(96, 165, 250, 0.7)',
+                  strokeDasharray: '3 3',
+                }}
+              />
+
+              <Legend
+                verticalAlign="top"
+                height={38}
+                iconType="plainline"
+                formatter={(value) => (
+                  <span className="dw-legend-label">{value}</span>
+                )}
+              />
 
               <Area
+                yAxisId="left"
                 type="monotone"
                 dataKey="temperature"
-                name="Temperature"
+                name="Temperature (°C)"
                 stroke="#ef4444"
-                fill="url(#tempFill)"
+                fill="url(#dwTempFill)"
                 strokeWidth={3}
                 dot={false}
-                activeDot={{ r: 5 }}
+                activeDot={{
+                  r: 6,
+                  strokeWidth: 3,
+                  fill: '#0f172a',
+                }}
                 connectNulls
                 isAnimationActive={false}
               />
 
               <Area
+                yAxisId="right"
                 type="monotone"
                 dataKey="humidity"
-                name="Humidity"
-                stroke="#2563eb"
-                fill="url(#humFill)"
+                name="Humidity (%)"
+                stroke="#3b82f6"
+                fill="url(#dwHumFill)"
                 strokeWidth={3}
                 dot={false}
-                activeDot={{ r: 5 }}
+                activeDot={{
+                  r: 6,
+                  strokeWidth: 3,
+                  fill: '#0f172a',
+                }}
                 connectNulls
                 isAnimationActive={false}
               />
