@@ -13,7 +13,8 @@ import { Download, Droplets, Thermometer } from 'lucide-react'
 
 import { getDevices, getHistory } from '../services/api'
 
-const MAX_POINTS = 144
+const MAX_POINTS = 72
+const REFRESH_INTERVAL = 30000
 
 function toArray(payload) {
   if (Array.isArray(payload)) return payload
@@ -49,9 +50,11 @@ function getNumber(...values) {
 }
 
 function formatTime(value) {
+  if (!value) return '--'
+
   const date = new Date(value)
 
-  if (!value || Number.isNaN(date.getTime())) return '--'
+  if (Number.isNaN(date.getTime())) return '--'
 
   return date.toLocaleTimeString('th-TH', {
     hour: '2-digit',
@@ -65,22 +68,20 @@ function normalizeHistory(payload) {
   return toArray(payload)
     .map((item) => {
       const time = getTime(item)
-      const temperature = getNumber(
-        item.avg_temperature,
-        item.avgTemperature,
-        item.temperature
-      )
-      const humidity = getNumber(
-        item.avg_humidity,
-        item.avgHumidity,
-        item.humidity
-      )
 
       return {
         time,
         label: formatTime(time),
-        temperature,
-        humidity,
+        temperature: getNumber(
+          item.avg_temperature,
+          item.avgTemperature,
+          item.temperature
+        ),
+        humidity: getNumber(
+          item.avg_humidity,
+          item.avgHumidity,
+          item.humidity
+        ),
       }
     })
     .filter((item) => {
@@ -235,7 +236,7 @@ function ChartWidget() {
 
     const timer = setInterval(() => {
       loadHistory(selectedDeviceId)
-    }, 5000)
+    }, REFRESH_INTERVAL)
 
     return () => clearInterval(timer)
   }, [selectedDeviceId, rangeHours])
@@ -419,22 +420,23 @@ function ChartWidget() {
                 minTickGap={30}
                 tick={{
                   fontSize: 12,
-                  fill: 'rgba(226, 232, 240, 0.72)',
+                  fill: '#94a3b8',
                   fontWeight: 600,
                 }}
               />
 
-              <XAxis
-  dataKey="label"
-  tickLine={false}
-  axisLine={false}
-  minTickGap={30}
-  tick={{
-    fontSize: 12,
-    fill: 'var(--muted)',
-    fontWeight: 600,
-  }}
-/>
+              <YAxis
+                yAxisId="left"
+                tickLine={false}
+                axisLine={false}
+                width={34}
+                domain={['auto', 'auto']}
+                tick={{
+                  fontSize: 12,
+                  fill: '#f87171',
+                  fontWeight: 700,
+                }}
+              />
 
               <YAxis
                 yAxisId="right"
@@ -477,11 +479,7 @@ function ChartWidget() {
                 fill="url(#dwTempFill)"
                 strokeWidth={3}
                 dot={false}
-                activeDot={{
-                  r: 6,
-                  strokeWidth: 3,
-                  fill: '#0f172a',
-                }}
+                activeDot={false}
                 connectNulls
                 isAnimationActive={false}
               />
@@ -495,11 +493,7 @@ function ChartWidget() {
                 fill="url(#dwHumFill)"
                 strokeWidth={3}
                 dot={false}
-                activeDot={{
-                  r: 6,
-                  strokeWidth: 3,
-                  fill: '#0f172a',
-                }}
+                activeDot={false}
                 connectNulls
                 isAnimationActive={false}
               />
