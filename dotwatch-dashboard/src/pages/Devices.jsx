@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react'
 import DeviceCard from '../components/DeviceCard.jsx'
+import LocationPicker from '../components/LocationPicker.jsx'
 import {
   getDevices,
   addDevice,
@@ -9,7 +10,6 @@ import {
   resetDeviceSecret,
   updateDeviceLocation,
 } from '../services/api'
-import { parseGoogleMapLink } from '../utils/parseGoogleMapLink'
 
 function createDeviceCode() {
   return `dotwatch-${Date.now()}`
@@ -24,9 +24,9 @@ function Device() {
   const [deviceName, setDeviceName] = useState('')
   const [editingDeviceId, setEditingDeviceId] = useState(null)
   const [editingName, setEditingName] = useState('')
+  const [locations, setLocations] = useState({})
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
-  const [mapLinks, setMapLinks] = useState({})
 
   async function loadDevices() {
     try {
@@ -81,9 +81,12 @@ function Device() {
 
     try {
       setSaving(true)
+
       await updateDeviceName(deviceId, editingName.trim())
+
       setEditingDeviceId(null)
       setEditingName('')
+
       await loadDevices()
     } catch (error) {
       console.error('Update device error:', error)
@@ -111,14 +114,18 @@ function Device() {
 
   async function handleResetSecret(device) {
     const ok = confirm(
-      `ต้องการ Reset Secret ของ ${device.name || device.device_code} ใช่ไหม?\n\nSecret เดิมจะใช้งานไม่ได้ทันที`
+      `ต้องการ Reset Secret ของ ${
+        device.name || device.device_code
+      } ใช่ไหม?\n\nSecret เดิมจะใช้งานไม่ได้ทันที`
     )
 
     if (!ok) return
 
     try {
       setSaving(true)
+
       const result = await resetDeviceSecret(device.id)
+
       await loadDevices()
 
       alert(
@@ -135,38 +142,40 @@ function Device() {
   async function handleChangeGroup(deviceId, groupName) {
     try {
       setSaving(true)
+
       await updateDeviceGroup(deviceId, groupName)
+
       await loadDevices()
     } catch (error) {
-      console.error(error)
+      console.error('Update group error:', error)
       alert('อัปเดต Group ไม่สำเร็จ')
     } finally {
       setSaving(false)
     }
   }
 
-  async function handleSaveLocation(deviceId) {
-    const mapUrl = mapLinks[deviceId] || ''
-    const position = parseGoogleMapLink(mapUrl)
+  async function handleSavePickedLocation(device) {
+    const location = locations[device.id]
 
-    if (!position) {
-      alert('ไม่พบพิกัดใน Google Maps Link')
+    if (!location) {
+      alert('กรุณาคลิกเลือกตำแหน่งบนแผนที่ก่อน')
       return
     }
 
     try {
       setSaving(true)
 
-      await updateDeviceLocation(deviceId, {
-        latitude: position.latitude,
-        longitude: position.longitude,
-        mapUrl,
+      await updateDeviceLocation(device.id, {
+        latitude: location.latitude,
+        longitude: location.longitude,
+        mapUrl: null,
       })
 
       await loadDevices()
+
       alert('บันทึกตำแหน่ง Device สำเร็จ')
     } catch (error) {
-      console.error('Save location error:', error)
+      console.error('Save picked location error:', error)
       alert(error.message || 'บันทึกตำแหน่งไม่สำเร็จ')
     } finally {
       setSaving(false)
@@ -285,34 +294,32 @@ function Device() {
                   }}
                 />
 
-                <div className="device-map-url-box">
-                  <input
-                    value={mapLinks[device.id] ?? device.map_url ?? ''}
-                    disabled={saving}
-                    onChange={(event) =>
-                      setMapLinks((prev) => ({
+                <div className="device-location-section">
+                  <div className="device-location-header">
+                    <strong>Device Location</strong>
+                    <span>คลิกบนแผนที่เพื่อเลือกตำแหน่ง</span>
+                  </div>
+
+                  <LocationPicker
+                    latitude={device.latitude}
+                    longitude={device.longitude}
+                    onChange={(location) =>
+                      setLocations((prev) => ({
                         ...prev,
-                        [device.id]: event.target.value,
+                        [device.id]: location,
                       }))
                     }
-                    placeholder="Paste Google Maps link"
                   />
 
                   <button
                     type="button"
+                    className="save-btn location-save-btn"
                     disabled={saving}
-                    onClick={() => handleSaveLocation(device.id)}
+                    onClick={() => handleSavePickedLocation(device)}
                   >
-                    Save Location
+                    Save Map Location
                   </button>
                 </div>
-
-                {device.latitude != null && device.longitude != null && (
-                  <div className="device-location-preview">
-                    Lat: {Number(device.latitude).toFixed(6)} | Lng:{' '}
-                    {Number(device.longitude).toFixed(6)}
-                  </div>
-                )}
 
                 <div className="device-actions">
                   {editingDeviceId !== device.id && (
