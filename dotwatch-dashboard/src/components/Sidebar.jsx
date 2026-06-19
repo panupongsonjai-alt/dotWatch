@@ -8,6 +8,7 @@ function Sidebar({ page, setPage }) {
     { id: 'alarms', label: 'Alarms', icon: '🚨' },
     { id: 'settings', label: 'Settings', icon: '⚙️' },
     { id: 'profile', label: 'Profile', icon: '👤' },
+    { id: 'demo-center', label: 'Demo Center', icon: '🎯' },
     { id: 'alarm-rules', label: 'Alarm Rules', icon: '📏'}
   ]
   

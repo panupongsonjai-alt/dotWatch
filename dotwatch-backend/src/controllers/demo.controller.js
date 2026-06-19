@@ -386,3 +386,242 @@ export async function deleteDemoData(req, res) {
     deletedDevices: result.rowCount,
   })
 }
+
+export async function getDemoStatistics(req, res) {
+  const user = req.dbUser
+
+  const result = await pool.query(
+    `
+    SELECT
+      COUNT(d.id)::int AS demo_devices,
+      COALESCE(MAX(ds.generated_readings), 0)::bigint AS generated_readings,
+      COALESCE(MAX(ds.generated_alarms), 0)::bigint AS generated_alarms,
+      MAX(ds.last_run_at) AS last_run_at
+    FROM users u
+    LEFT JOIN devices d
+      ON d.user_id = u.id
+      AND (
+        d.device_code LIKE 'DW-COLD-%'
+        OR d.device_code LIKE 'DW-SERVER-%'
+        OR d.device_code LIKE 'DW-FACTORY-%'
+        OR d.device_code LIKE 'DW-FARM-%'
+      )
+    LEFT JOIN demo_statistics ds
+      ON ds.user_id = u.id
+    WHERE u.id = $1
+    `,
+    [user.id]
+  )
+
+  res.json(
+    result.rows[0] || {
+      demo_devices: 0,
+      generated_readings: 0,
+      generated_alarms: 0,
+      last_run_at: null,
+    }
+  )
+}
+
+export async function generateDemoAlarmNow(req, res) {
+  const user = req.dbUser
+
+  const deviceResult = await pool.query(
+    `
+    SELECT id
+    FROM devices
+    WHERE user_id = $1
+      AND (
+        device_code LIKE 'DW-COLD-%'
+        OR device_code LIKE 'DW-SERVER-%'
+        OR device_code LIKE 'DW-FACTORY-%'
+        OR device_code LIKE 'DW-FARM-%'
+      )
+    ORDER BY RANDOM()
+    LIMIT 1
+    `,
+    [user.id]
+  )
+
+  if (!deviceResult.rows.length) {
+    return res.status(404).json({
+      message: 'No demo device found',
+    })
+  }
+
+  const deviceId = deviceResult.rows[0].id
+  const value = Number((35 + Math.random() * 5).toFixed(1))
+
+  await pool.query(
+    `
+    INSERT INTO alarm_events (
+      user_id,
+      device_id,
+      metric,
+      operator,
+      threshold,
+      value,
+      severity,
+      status,
+      triggered_at
+    )
+    VALUES ($1, $2, 'temperature', '>', 35, $3, 'warning', 'active', NOW())
+    `,
+    [user.id, deviceId, value]
+  )
+
+  await pool.query(
+    `
+    INSERT INTO demo_statistics (
+      user_id,
+      generated_readings,
+      generated_alarms,
+      last_run_at
+    )
+    VALUES ($1, 0, 1, NOW())
+    ON CONFLICT (user_id)
+    DO UPDATE SET
+      generated_alarms = demo_statistics.generated_alarms + 1,
+      last_run_at = NOW()
+    `,
+    [user.id]
+  )
+
+  res.json({
+    ok: true,
+    message: 'Demo alarm generated',
+  })
+}
+
+export async function generateDemoOfflineNow(req, res) {
+  const user = req.dbUser
+
+  const result = await pool.query(
+    `
+    UPDATE devices
+    SET
+      status = 'offline',
+      last_seen_at = NOW() - INTERVAL '5 minutes',
+      last_ingest_at = NOW() - INTERVAL '5 minutes'
+    WHERE id = (
+      SELECT id
+      FROM devices
+      WHERE user_id = $1
+        AND (
+          device_code LIKE 'DW-COLD-%'
+          OR device_code LIKE 'DW-SERVER-%'
+          OR device_code LIKE 'DW-FACTORY-%'
+          OR device_code LIKE 'DW-FARM-%'
+        )
+      ORDER BY RANDOM()
+      LIMIT 1
+    )
+    RETURNING id, device_code, name, status
+    `,
+    [user.id]
+  )
+
+  if (!result.rows.length) {
+    return res.status(404).json({
+      message: 'No demo device found',
+    })
+  }
+
+  res.json({
+    ok: true,
+    device: result.rows[0],
+  })
+}
+
+export async function generateDemoHistoryNow(req, res) {
+  const user = req.dbUser
+
+  const devicesResult = await pool.query(
+    `
+    SELECT id, device_code
+    FROM devices
+    WHERE user_id = $1
+      AND (
+        device_code LIKE 'DW-COLD-%'
+        OR device_code LIKE 'DW-SERVER-%'
+        OR device_code LIKE 'DW-FACTORY-%'
+        OR device_code LIKE 'DW-FARM-%'
+      )
+    `,
+    [user.id]
+  )
+
+  if (!devicesResult.rows.length) {
+    return res.status(404).json({
+      message: 'No demo device found',
+    })
+  }
+
+  let created = 0
+  const now = new Date()
+
+  for (const device of devicesResult.rows) {
+    for (let i = 0; i < 288; i += 1) {
+      const time = new Date(now.getTime() - (287 - i) * 5 * 60 * 1000)
+
+      const isServer = device.device_code.includes('SERVER')
+      const isCold = device.device_code.includes('COLD')
+      const isFarm = device.device_code.includes('FARM')
+      const baseTemp = isCold ? 4 : isServer ? 29 : isFarm ? 28 : 32
+      const baseHumidity = isCold ? 68 : isServer ? 50 : isFarm ? 78 : 60
+
+      const temperature = Number(
+        (baseTemp + (Math.random() - 0.5) * 5).toFixed(1)
+      )
+
+      const humidity = Number(
+        (baseHumidity + (Math.random() - 0.5) * 8).toFixed(1)
+      )
+
+      await pool.query(
+        `
+        INSERT INTO sensor_readings (
+          time,
+          device_id,
+          temperature,
+          humidity,
+          rssi
+        )
+        VALUES ($1, $2, $3, $4, $5)
+        `,
+        [
+          time,
+          device.id,
+          temperature,
+          humidity,
+          -50 - Math.floor(Math.random() * 20),
+        ]
+      )
+
+      created += 1
+    }
+  }
+
+  await pool.query(
+    `
+    INSERT INTO demo_statistics (
+      user_id,
+      generated_readings,
+      generated_alarms,
+      last_run_at
+    )
+    VALUES ($1, $2, 0, NOW())
+    ON CONFLICT (user_id)
+    DO UPDATE SET
+      generated_readings =
+        demo_statistics.generated_readings + EXCLUDED.generated_readings,
+      last_run_at = NOW()
+    `,
+    [user.id, created]
+  )
+
+  res.json({
+    ok: true,
+    generatedReadings: created,
+  })
+}

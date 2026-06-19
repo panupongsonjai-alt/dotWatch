@@ -1883,3 +1883,149 @@ select:focus {
     grid-template-columns: 1fr;
   }
 }
+
+.stats-grid {
+  display: grid;
+  gap: 16px;
+  margin-bottom: 24px;
+  grid-template-columns:
+    repeat(
+      4,
+      minmax(0, 1fr)
+    );
+}
+
+.stat-card {
+  padding: 20px;
+  border-radius: 20px;
+  background: var(--panel);
+  border: 1px solid var(--border);
+}
+
+.stat-card h3 {
+  margin: 0;
+  font-size: 14px;
+  color: var(--muted);
+}
+
+.stat-card strong {
+  display: block;
+  margin-top: 10px;
+  font-size: 30px;
+}
+
+@media (max-width: 960px) {
+  .stats-grid {
+    grid-template-columns:
+      repeat(
+        2,
+        minmax(0, 1fr)
+      );
+  }
+}
+
+@media (max-width: 640px) {
+  .stats-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.demo-generator-card {
+  margin-bottom: 22px;
+  padding: 22px;
+  border-radius: 24px;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow);
+}
+
+.demo-generator-options {
+  display: grid;
+  gap: 14px;
+  margin: 18px 0;
+}
+
+.demo-switch-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 18px;
+  align-items: center;
+  padding: 14px;
+  border-radius: 16px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+}
+
+.demo-switch-row span {
+  display: grid;
+  gap: 4px;
+}
+
+.demo-switch-row strong {
+  color: var(--text);
+}
+
+.demo-switch-row small {
+  color: var(--muted);
+}
+
+.demo-switch-row input {
+  width: 22px;
+  height: 22px;
+}
+
+.demo-field {
+  display: grid;
+  gap: 8px;
+  color: var(--text);
+  font-weight: 600;
+}
+
+.demo-field select {
+  width: 100%;
+  padding: 12px 14px;
+  border-radius: 14px;
+  border: 1px solid var(--border);
+  background: var(--input);
+  color: var(--text);
+}
+
+.demo-actions-card {
+  margin-bottom: 22px;
+  padding: 22px;
+  border-radius: 24px;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow);
+}
+
+.demo-actions-grid {
+  display: grid;
+  grid-template-columns: repeat(
+    auto-fit,
+    minmax(220px, 1fr)
+  );
+  gap: 14px;
+  margin-top: 18px;
+}
+
+.demo-actions-grid button {
+  width: 100%;
+}
+
+@media (max-width: 960px) {
+  .demo-actions-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 640px) {
+  .demo-actions-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.demo-actions-grid button {
+  min-height: 52px;
+  white-space: nowrap;
+}

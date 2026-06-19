@@ -1,6 +1,5 @@
 import React, { useEffect, useState } from 'react'
 import DeviceCard from '../components/DeviceCard.jsx'
-import DemoTemplatesPanel from '../components/DemoTemplatesPanel.jsx'
 import { getDevices, addDevice, deleteDevice, updateDeviceName, updateDeviceGroup, resetDeviceSecret,} from '../services/api'
 
 function createDeviceCode() {
@@ -169,12 +168,6 @@ function Device() {
             {saving ? 'กำลังบันทึก...' : '+ เพิ่ม Device'}
           </button>
         </div>
-
-        <DemoTemplatesPanel
-  onDone={() => {
-    loadDevices()
-  }}
-/>
 
         {loading ? (
           <div className="empty-device">

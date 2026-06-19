@@ -14,6 +14,7 @@ import DeviceDetail from './pages/DeviceDetail.jsx'
 import Sidebar from './components/Sidebar'
 import Navbar from './components/Navbar'
 import VerifyEmail from './pages/VerifyEmail'
+import DemoCenter from './pages/DemoCenter'
 
 function App() {
   const { user, authLoading, logout } = useAuth()
@@ -77,12 +78,9 @@ function App() {
 
         {page === 'alarm-rules' && <AlarmRules />}
 
-        {page === 'device-detail' && (
-          <DeviceDetail
-            deviceId={selectedDeviceId}
-            onBack={backToDashboard}
-          />
-        )}
+        {page === 'device-detail' && (<DeviceDetail deviceId={selectedDeviceId}onBack={backToDashboard}/> )}
+
+        {page === 'demo-center' && <DemoCenter />}
 
         {page === 'profile' && <Profile />}
 

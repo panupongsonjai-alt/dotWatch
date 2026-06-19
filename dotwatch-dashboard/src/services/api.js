@@ -131,3 +131,36 @@ export function deleteDemoData() {
     method: 'DELETE',
   })
 }
+
+export function getDemoStatistics() {
+  return apiFetch('/api/demo/statistics')
+}
+
+export function getDemoGeneratorConfig() {
+  return apiFetch('/api/demo-generator')
+}
+
+export function saveDemoGeneratorConfig(data) {
+  return apiFetch('/api/demo-generator', {
+    method: 'POST',
+    body: JSON.stringify(data),
+  })
+}
+
+export function generateDemoAlarmNow() {
+  return apiFetch('/api/demo/actions/alarm-now', {
+    method: 'POST',
+  })
+}
+
+export function generateDemoOfflineNow() {
+  return apiFetch('/api/demo/actions/offline-now', {
+    method: 'POST',
+  })
+}
+
+export function generateDemoHistoryNow() {
+  return apiFetch('/api/demo/actions/history-now', {
+    method: 'POST',
+  })
+}
