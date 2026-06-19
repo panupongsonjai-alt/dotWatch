@@ -2387,3 +2387,140 @@ select:focus {
     flex: 1;
   }
 }
+
+.chart-panel {
+  margin-top: 22px;
+  padding: 22px;
+  border-radius: 24px;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow);
+}
+
+.chart-header {
+  display: flex;
+  justify-content: space-between;
+  gap: 18px;
+  align-items: flex-start;
+  margin-bottom: 18px;
+}
+
+.chart-header h2 {
+  margin: 0;
+  color: var(--text);
+}
+
+.chart-header p {
+  margin: 6px 0 0;
+  color: var(--muted);
+}
+
+.chart-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  justify-content: flex-end;
+}
+
+.chart-actions select {
+  min-width: 150px;
+  padding: 11px 14px;
+  border-radius: 14px;
+  border: 1px solid var(--border);
+  background: var(--input);
+  color: var(--text);
+}
+
+.realtime-stats {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
+  margin-bottom: 16px;
+}
+
+.realtime-stat {
+  padding: 18px;
+  border-radius: 20px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+}
+
+.realtime-stat p {
+  margin: 0 0 8px;
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.realtime-stat strong {
+  display: block;
+  color: var(--text);
+  font-size: 28px;
+  margin-bottom: 6px;
+}
+
+.realtime-stat span,
+.realtime-stat small {
+  display: block;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.chart-toggles {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 16px;
+}
+
+.chart-box {
+  width: 100%;
+  min-height: 390px;
+}
+
+.chart-tooltip {
+  min-width: 180px;
+  padding: 12px 14px;
+  border-radius: 14px;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow);
+  color: var(--text);
+}
+
+.chart-tooltip strong {
+  display: block;
+  margin-bottom: 8px;
+  font-size: 13px;
+}
+
+.chart-tooltip-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 18px;
+  font-size: 13px;
+  margin-top: 6px;
+}
+
+.chart-tooltip-row span {
+  color: var(--muted);
+}
+
+.chart-tooltip-row b {
+  color: var(--text);
+}
+
+@media (max-width: 920px) {
+  .chart-header {
+    flex-direction: column;
+  }
+
+  .chart-actions {
+    justify-content: flex-start;
+    width: 100%;
+  }
+
+  .realtime-stats {
+    grid-template-columns: 1fr;
+  }
+}

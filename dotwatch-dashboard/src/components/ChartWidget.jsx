@@ -1,154 +1,200 @@
 import { useEffect, useMemo, useState } from 'react'
 import {
-  AreaChart,
   Area,
+  AreaChart,
+  Brush,
+  CartesianGrid,
+  Legend,
+  ResponsiveContainer,
+  Tooltip,
   XAxis,
   YAxis,
-  CartesianGrid,
-  Tooltip,
-  ResponsiveContainer,
 } from 'recharts'
-
 import { getDevices, getHistory } from '../services/api'
-import { auth } from '../services/firebase'
-import { connectRealtime, disconnectRealtime } from '../services/realtime'
 
 const RANGE_OPTIONS = [
-  { label: '24 ชั่วโมง', value: '24h', hours: 24 },
-  { label: '7 วัน', value: '7d', hours: 24 * 7 },
-  { label: '30 วัน', value: '30d', hours: 24 * 30 },
-  { label: '1 ปี', value: '1y', hours: 24 * 365 },
+  { label: '1H', value: '1h', hours: 1 },
+  { label: '6H', value: '6h', hours: 6 },
+  { label: '24H', value: '24h', hours: 24 },
+  { label: '7D', value: '7d', days: 7 },
+  { label: '30D', value: '30d', days: 30 },
 ]
 
-function getDateRange(hours) {
-  const to = new Date()
-  const from = new Date(to.getTime() - hours * 60 * 60 * 1000)
+function getDateRange(range) {
+  const now = new Date()
+  const option = RANGE_OPTIONS.find((item) => item.value === range)
+
+  const from = new Date(now)
+
+  if (option?.days) {
+    from.setDate(now.getDate() - option.days)
+  } else {
+    from.setHours(now.getHours() - (option?.hours || 24))
+  }
 
   return {
     from: from.toISOString(),
-    to: to.toISOString(),
+    to: now.toISOString(),
   }
 }
 
-function normalizeHistory(rows) {
-  return rows
-    .map((item) => {
-      const rawTime = item.bucket_time || item.time || item.latest_time
-      const timestamp = new Date(rawTime).getTime()
-
-      return {
-        timestamp,
-        datetime: new Date(timestamp).toLocaleString('th-TH'),
-        temperature:
-          item.avg_temperature != null
-            ? Number(Number(item.avg_temperature).toFixed(1))
-            : null,
-        humidity:
-          item.avg_humidity != null
-            ? Number(Number(item.avg_humidity).toFixed(1))
-            : null,
-      }
-    })
-    .filter((item) => Number.isFinite(item.timestamp))
-    .sort((a, b) => a.timestamp - b.timestamp)
-}
-
-function formatXAxis(value) {
+function formatTime(value) {
+  if (!value) return ''
   return new Date(value).toLocaleString('th-TH', {
+    month: 'short',
     day: '2-digit',
-    month: '2-digit',
     hour: '2-digit',
     minute: '2-digit',
   })
 }
 
-function getAverage(data, key) {
-  const values = data
+function normalizeHistory(items) {
+  return (items || []).map((item) => {
+    const timestamp = item.bucket_time || item.time || item.latest_time
+
+    return {
+      timestamp,
+      label: formatTime(timestamp),
+      temperature:
+        item.avg_temperature != null
+          ? Number(item.avg_temperature)
+          : item.temperature != null
+          ? Number(item.temperature)
+          : null,
+      humidity:
+        item.avg_humidity != null
+          ? Number(item.avg_humidity)
+          : item.humidity != null
+          ? Number(item.humidity)
+          : null,
+      rssi:
+        item.avg_rssi != null
+          ? Number(item.avg_rssi)
+          : item.rssi != null
+          ? Number(item.rssi)
+          : null,
+    }
+  })
+}
+
+function getValues(data, key) {
+  return data
     .map((item) => Number(item[key]))
     .filter((value) => Number.isFinite(value))
+}
 
-  if (values.length === 0) return '--'
+function getAverage(data, key) {
+  const values = getValues(data, key)
+  if (!values.length) return '--'
 
-  return (values.reduce((sum, value) => sum + value, 0) / values.length).toFixed(
-    1
+  const total = values.reduce((sum, value) => sum + value, 0)
+  return (total / values.length).toFixed(1)
+}
+
+function getMin(data, key) {
+  const values = getValues(data, key)
+  if (!values.length) return '--'
+  return Math.min(...values).toFixed(1)
+}
+
+function getMax(data, key) {
+  const values = getValues(data, key)
+  if (!values.length) return '--'
+  return Math.max(...values).toFixed(1)
+}
+
+function exportCsv(device, range, data) {
+  const rows = [
+    ['device_code', 'device_name', 'range', 'time', 'temperature', 'humidity', 'rssi'],
+    ...data.map((row) => [
+      device?.device_code || '',
+      device?.name || '',
+      range,
+      row.timestamp || '',
+      row.temperature ?? '',
+      row.humidity ?? '',
+      row.rssi ?? '',
+    ]),
+  ]
+
+  const csv = rows.map((row) => row.join(',')).join('\n')
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
+  const url = URL.createObjectURL(blob)
+
+  const link = document.createElement('a')
+  link.href = url
+  link.download = `${device?.device_code || 'device'}-${range}-history.csv`
+  link.click()
+
+  URL.revokeObjectURL(url)
+}
+
+function CustomTooltip({ active, payload, label }) {
+  if (!active || !payload?.length) return null
+
+  return (
+    <div className="chart-tooltip">
+      <strong>{formatTime(label)}</strong>
+
+      {payload.map((item) => (
+        <div key={item.dataKey} className="chart-tooltip-row">
+          <span>{item.name}</span>
+          <b>
+            {item.value}
+            {item.dataKey === 'temperature' && '°C'}
+            {item.dataKey === 'humidity' && '%'}
+            {item.dataKey === 'rssi' && ' dBm'}
+          </b>
+        </div>
+      ))}
+    </div>
   )
 }
 
-function makeRealtimePoint(reading) {
-  const rawTime = reading.latest_time || reading.time || Date.now()
-  const timestamp = new Date(rawTime).getTime()
-
-  return {
-    timestamp,
-    datetime: new Date(timestamp).toLocaleString('th-TH'),
-    temperature:
-      reading.temperature != null
-        ? Number(Number(reading.temperature).toFixed(1))
-        : null,
-    humidity:
-      reading.humidity != null
-        ? Number(Number(reading.humidity).toFixed(1))
-        : null,
-  }
-}
-
-function ChartWidget({ defaultDeviceId }) {
+function ChartWidget({ deviceId }) {
   const [devices, setDevices] = useState([])
-  const [selectedDeviceId, setSelectedDeviceId] = useState('')
+  const [selectedDeviceId, setSelectedDeviceId] = useState(deviceId || '')
   const [range, setRange] = useState('24h')
   const [chartData, setChartData] = useState([])
-  const [loading, setLoading] = useState(false)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState('')
 
-  const selectedDeviceName = useMemo(() => {
-    const device = devices.find((item) => String(item.id) === selectedDeviceId)
-    return device?.name || selectedDeviceId || 'device'
-  }, [devices, selectedDeviceId])
+  const [showTemperature, setShowTemperature] = useState(true)
+  const [showHumidity, setShowHumidity] = useState(true)
+  const [showRSSI, setShowRSSI] = useState(false)
+
+  const selectedDevice = useMemo(
+    () => devices.find((device) => String(device.id) === String(selectedDeviceId)),
+    [devices, selectedDeviceId]
+  )
 
   const latestData = chartData[chartData.length - 1]
 
-  useEffect(() => {
-  if (defaultDeviceId) {
-    setSelectedDeviceId(String(defaultDeviceId))
-  }
-}, [defaultDeviceId])
-
   async function loadDevices() {
-    try {
-      const data = await getDevices()
-      const list = Array.isArray(data) ? data : []
+    const data = await getDevices()
+    const list = Array.isArray(data) ? data : []
 
-      setDevices(list)
+    setDevices(list)
 
-      if (defaultDeviceId) {
-  setSelectedDeviceId(String(defaultDeviceId))
-} else if (!selectedDeviceId && list.length > 0) {
-  setSelectedDeviceId(String(list[0].id))
-}
-    } catch (error) {
-      console.error('Load chart devices error:', error)
-      setDevices([])
+    if (!selectedDeviceId && list.length > 0) {
+      setSelectedDeviceId(list[0].id)
     }
   }
 
-  async function loadHistory(deviceId, selectedRangeValue) {
-    if (!deviceId) return
+  async function loadHistory(targetDeviceId = selectedDeviceId, targetRange = range) {
+    if (!targetDeviceId) return
 
     try {
       setLoading(true)
+      setError('')
 
-      const option =
-        RANGE_OPTIONS.find((item) => item.value === selectedRangeValue) ||
-        RANGE_OPTIONS[0]
+      const { from, to } = getDateRange(targetRange)
+      const data = await getHistory(targetDeviceId, from, to)
 
-      const { from, to } = getDateRange(option.hours)
-
-      const data = await getHistory(deviceId, from, to)
-      const points = normalizeHistory(Array.isArray(data) ? data : [])
-
-      setChartData(points)
-    } catch (error) {
-      console.error('Load history error:', error)
-      setChartData([])
+      setChartData(normalizeHistory(data))
+    } catch (err) {
+      console.error(err)
+      setError('โหลดข้อมูลกราฟไม่สำเร็จ')
     } finally {
       setLoading(false)
     }
@@ -159,229 +205,240 @@ function ChartWidget({ defaultDeviceId }) {
   }, [])
 
   useEffect(() => {
-    loadHistory(selectedDeviceId, range)
+    if (deviceId) {
+      setSelectedDeviceId(deviceId)
+    }
+  }, [deviceId])
+
+  useEffect(() => {
+    if (selectedDeviceId) {
+      loadHistory(selectedDeviceId, range)
+    }
   }, [selectedDeviceId, range])
 
   useEffect(() => {
-    const user = auth.currentUser
+    if (!selectedDeviceId) return
 
-    if (!user || !selectedDeviceId) return
+    const timer = setInterval(() => {
+      loadHistory(selectedDeviceId, range)
+    }, 15000)
 
-    connectRealtime(user.uid, (reading) => {
-      if (String(reading.id) !== String(selectedDeviceId)) return
-
-      const point = makeRealtimePoint(reading)
-
-      setChartData((prev) => {
-        const duplicated = prev.some(
-          (item) => item.timestamp === point.timestamp
-        )
-
-        if (duplicated) return prev
-
-        return [...prev, point]
-          .filter((item) => Number.isFinite(item.timestamp))
-          .sort((a, b) => a.timestamp - b.timestamp)
-          .slice(-1000)
-      })
-    })
-
-    return () => {
-      disconnectRealtime()
-    }
-  }, [selectedDeviceId])
-
-  function exportCSV() {
-    if (chartData.length === 0) return
-
-    const headers = ['datetime', 'temperature', 'humidity']
-
-    const rows = chartData.map((row) => [
-      row.datetime,
-      row.temperature ?? '',
-      row.humidity ?? '',
-    ])
-
-    const csvContent = [
-      headers.join(','),
-      ...rows.map((row) => row.join(',')),
-    ].join('\n')
-
-    const blob = new Blob(['\uFEFF' + csvContent], {
-      type: 'text/csv;charset=utf-8;',
-    })
-
-    const url = URL.createObjectURL(blob)
-    const link = document.createElement('a')
-
-    link.href = url
-    link.download = `${selectedDeviceName}-${range}-history.csv`
-    link.click()
-
-    URL.revokeObjectURL(url)
-  }
+    return () => clearInterval(timer)
+  }, [selectedDeviceId, range])
 
   return (
-    <section className="realtime-graph-section">
-      <div className="realtime-graph-card">
-        <div className="realtime-graph-header">
-          <div className="realtime-graph-title">
-            <h2>Real Time Graph</h2>
-            <p>History จาก TimescaleDB + Realtime WebSocket</p>
-          </div>
-
-          <div className="realtime-graph-stats">
-            <div className="realtime-stat">
-              <p>Temperature</p>
-              <strong>
-                {latestData?.temperature != null
-                  ? `${latestData.temperature.toFixed(1)}°C`
-                  : '--'}
-              </strong>
-              <span>Avg {getAverage(chartData, 'temperature')}°C</span>
-            </div>
-
-            <div className="realtime-stat">
-              <p>Humidity</p>
-              <strong>
-                {latestData?.humidity != null
-                  ? `${latestData.humidity.toFixed(1)}%`
-                  : '--'}
-              </strong>
-              <span>Avg {getAverage(chartData, 'humidity')}%</span>
-            </div>
-          </div>
+    <section className="chart-panel">
+      <div className="chart-header">
+        <div>
+          <h2>Sensor Analytics</h2>
+          <p>กราฟวิเคราะห์ข้อมูลย้อนหลังของอุปกรณ์</p>
         </div>
 
-        {loading ? (
-          <div className="realtime-chart-box empty-chart">
-            กำลังโหลดข้อมูล History...
-          </div>
-        ) : chartData.length === 0 ? (
-          <div className="realtime-chart-box empty-chart">
-            ยังไม่มีข้อมูล History จาก Device...
-          </div>
-        ) : (
-          <div className="realtime-chart-box">
-            <ResponsiveContainer width="100%" height="100%">
-              <AreaChart
-                data={chartData}
-                margin={{ top: 12, right: 24, left: 0, bottom: 8 }}
-              >
-                <CartesianGrid
-                  stroke="#e2e8f0"
-                  strokeDasharray="6 6"
-                  opacity={0.9}
-                />
+        <div className="chart-actions">
+          {!deviceId && (
+            <select
+              value={selectedDeviceId}
+              onChange={(event) => setSelectedDeviceId(event.target.value)}
+            >
+              <option value="">เลือก Device</option>
 
-                <XAxis
-                  dataKey="timestamp"
-                  type="number"
-                  domain={['dataMin', 'dataMax']}
-                  tickFormatter={formatXAxis}
-                  tickLine={false}
-                  axisLine={false}
-                  minTickGap={26}
-                  stroke="#64748b"
-                  fontSize={12}
-                />
-
-                <YAxis
-                  domain={[0, 100]}
-                  tickLine={false}
-                  axisLine={false}
-                  width={42}
-                  stroke="#64748b"
-                  fontSize={12}
-                />
-
-                <Tooltip
-                  formatter={(value, name) => [
-                    value != null ? Number(value).toFixed(1) : '--',
-                    name,
-                  ]}
-                  labelFormatter={(value) =>
-                    new Date(value).toLocaleString('th-TH')
-                  }
-                />
-
-                <Area
-                  type="monotone"
-                  dataKey="temperature"
-                  name="Temperature °C"
-                  stroke="#ef4444"
-                  fill="#ef4444"
-                  fillOpacity={0.12}
-                  strokeWidth={2.5}
-                  dot={false}
-                  activeDot={{ r: 5 }}
-                  isAnimationActive={false}
-                  connectNulls
-                />
-
-                <Area
-                  type="monotone"
-                  dataKey="humidity"
-                  name="Humidity %"
-                  stroke="#2563eb"
-                  fill="#2563eb"
-                  fillOpacity={0.1}
-                  strokeWidth={2.5}
-                  dot={false}
-                  activeDot={{ r: 5 }}
-                  isAnimationActive={false}
-                  connectNulls
-                />
-              </AreaChart>
-            </ResponsiveContainer>
-          </div>
-        )}
-
-        <div className="realtime-graph-actions">
-          <select
-            className="device-select clean-select"
-            value={selectedDeviceId}
-            onChange={(event) => {
-              setSelectedDeviceId(event.target.value)
-              setChartData([])
-            }}
-          >
-            {devices.length === 0 ? (
-              <option value="">ยังไม่มี Device</option>
-            ) : (
-              devices.map((device) => (
-                <option key={device.id} value={String(device.id)}>
+              {devices.map((device) => (
+                <option key={device.id} value={device.id}>
                   {device.name || device.device_code}
                 </option>
-              ))
-            )}
-          </select>
+              ))}
+            </select>
+          )}
 
-          <select
-            className="range-select clean-select"
-            value={range}
-            onChange={(event) => {
-              setRange(event.target.value)
-              setChartData([])
-            }}
-          >
-            {RANGE_OPTIONS.map((item) => (
-              <option key={item.value} value={item.value}>
-                {item.label}
+          <select value={range} onChange={(event) => setRange(event.target.value)}>
+            {RANGE_OPTIONS.map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label}
               </option>
             ))}
           </select>
 
           <button
-            className="csv-export-btn"
             type="button"
-            onClick={exportCSV}
-            disabled={chartData.length === 0}
+            className="ghost-button"
+            onClick={() => loadHistory(selectedDeviceId, range)}
+          >
+            Refresh
+          </button>
+
+          <button
+            type="button"
+            className="primary-button"
+            onClick={() => exportCsv(selectedDevice, range, chartData)}
+            disabled={!chartData.length}
           >
             Export CSV
           </button>
         </div>
       </div>
+
+      <div className="realtime-stats">
+        <article className="realtime-stat">
+          <p>Temperature</p>
+          <strong>
+            {latestData?.temperature != null
+              ? `${latestData.temperature.toFixed(1)}°C`
+              : '--'}
+          </strong>
+          <span>Avg {getAverage(chartData, 'temperature')}°C</span>
+          <small>
+            Min {getMin(chartData, 'temperature')}°C | Max{' '}
+            {getMax(chartData, 'temperature')}°C
+          </small>
+        </article>
+
+        <article className="realtime-stat">
+          <p>Humidity</p>
+          <strong>
+            {latestData?.humidity != null
+              ? `${latestData.humidity.toFixed(1)}%`
+              : '--'}
+          </strong>
+          <span>Avg {getAverage(chartData, 'humidity')}%</span>
+          <small>
+            Min {getMin(chartData, 'humidity')}% | Max{' '}
+            {getMax(chartData, 'humidity')}%
+          </small>
+        </article>
+
+        <article className="realtime-stat">
+          <p>RSSI</p>
+          <strong>
+            {latestData?.rssi != null ? `${latestData.rssi} dBm` : '--'}
+          </strong>
+          <span>Avg {getAverage(chartData, 'rssi')} dBm</span>
+          <small>
+            Min {getMin(chartData, 'rssi')} | Max {getMax(chartData, 'rssi')}
+          </small>
+        </article>
+      </div>
+
+      <div className="chart-toggles">
+        <button
+          type="button"
+          className={showTemperature ? 'filter-button active' : 'filter-button'}
+          onClick={() => setShowTemperature((value) => !value)}
+        >
+          Temperature
+        </button>
+
+        <button
+          type="button"
+          className={showHumidity ? 'filter-button active' : 'filter-button'}
+          onClick={() => setShowHumidity((value) => !value)}
+        >
+          Humidity
+        </button>
+
+        <button
+          type="button"
+          className={showRSSI ? 'filter-button active' : 'filter-button'}
+          onClick={() => setShowRSSI((value) => !value)}
+        >
+          RSSI
+        </button>
+      </div>
+
+      {error && <div className="auth-error">{error}</div>}
+
+      {loading && <div className="loading">Loading chart...</div>}
+
+      {!loading && !chartData.length && (
+        <div className="empty-state">
+          <h3>No chart data</h3>
+          <p>ยังไม่มีข้อมูลย้อนหลังสำหรับอุปกรณ์นี้</p>
+        </div>
+      )}
+
+      {!loading && chartData.length > 0 && (
+        <div className="chart-box">
+          <ResponsiveContainer width="100%" height={390}>
+            <AreaChart data={chartData} margin={{ top: 18, right: 24, left: 0, bottom: 10 }}>
+              <defs>
+                <linearGradient id="temperatureGradient" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="5%" stopColor="#ef4444" stopOpacity={0.28} />
+                  <stop offset="95%" stopColor="#ef4444" stopOpacity={0} />
+                </linearGradient>
+
+                <linearGradient id="humidityGradient" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="5%" stopColor="#2563eb" stopOpacity={0.24} />
+                  <stop offset="95%" stopColor="#2563eb" stopOpacity={0} />
+                </linearGradient>
+
+                <linearGradient id="rssiGradient" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="5%" stopColor="#10b981" stopOpacity={0.18} />
+                  <stop offset="95%" stopColor="#10b981" stopOpacity={0} />
+                </linearGradient>
+              </defs>
+
+              <CartesianGrid strokeDasharray="3 3" vertical={false} />
+              <XAxis
+                dataKey="timestamp"
+                tickFormatter={formatTime}
+                minTickGap={42}
+                tick={{ fontSize: 12 }}
+              />
+              <YAxis tick={{ fontSize: 12 }} />
+              <Tooltip content={<CustomTooltip />} />
+              <Legend />
+
+              {showTemperature && (
+                <Area
+                  type="monotone"
+                  dataKey="temperature"
+                  name="Temperature"
+                  stroke="#ef4444"
+                  fill="url(#temperatureGradient)"
+                  strokeWidth={2.5}
+                  dot={false}
+                  activeDot={{ r: 5 }}
+                  connectNulls
+                />
+              )}
+
+              {showHumidity && (
+                <Area
+                  type="monotone"
+                  dataKey="humidity"
+                  name="Humidity"
+                  stroke="#2563eb"
+                  fill="url(#humidityGradient)"
+                  strokeWidth={2.5}
+                  dot={false}
+                  activeDot={{ r: 5 }}
+                  connectNulls
+                />
+              )}
+
+              {showRSSI && (
+                <Area
+                  type="monotone"
+                  dataKey="rssi"
+                  name="RSSI"
+                  stroke="#10b981"
+                  fill="url(#rssiGradient)"
+                  strokeWidth={2}
+                  dot={false}
+                  activeDot={{ r: 5 }}
+                  connectNulls
+                />
+              )}
+
+              <Brush
+                dataKey="timestamp"
+                height={28}
+                travellerWidth={10}
+                tickFormatter={formatTime}
+              />
+            </AreaChart>
+          </ResponsiveContainer>
+        </div>
+      )}
     </section>
   )
 }
