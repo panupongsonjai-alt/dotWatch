@@ -40,21 +40,17 @@ function getTime(item) {
 
 function getNumber(...values) {
   for (const value of values) {
-    if (value !== null && value !== undefined && value !== '') {
-      const number = Number(value)
-      if (!Number.isNaN(number)) return number
+    const number = Number(value)
+    if (value !== null && value !== undefined && value !== '' && Number.isFinite(number)) {
+      return number
     }
   }
-
   return null
 }
 
 function formatTime(value) {
-  if (!value) return '--'
-
   const date = new Date(value)
-
-  if (Number.isNaN(date.getTime())) return '--'
+  if (!value || Number.isNaN(date.getTime())) return '--'
 
   return date.toLocaleTimeString('th-TH', {
     hour: '2-digit',
@@ -69,35 +65,35 @@ function normalizeHistory(payload) {
     .map((item) => {
       const time = getTime(item)
 
+      const temperature = getNumber(
+        item.avg_temperature,
+        item.avgTemperature,
+        item.temperature
+      )
+
+      const humidity = getNumber(
+        item.avg_humidity,
+        item.avgHumidity,
+        item.humidity
+      )
+
       return {
         time,
         label: formatTime(time),
-        temperature: getNumber(
-          item.avg_temperature,
-          item.avgTemperature,
-          item.temperature
-        ),
-        humidity: getNumber(
-          item.avg_humidity,
-          item.avgHumidity,
-          item.humidity
-        ),
+        temperature,
+        humidity,
       }
     })
     .filter((item) => {
       if (!item.time) return false
 
-      const date = new Date(item.time)
-      if (Number.isNaN(date.getTime())) return false
+      const timestamp = new Date(item.time).getTime()
+      if (Number.isNaN(timestamp)) return false
 
       if (seen.has(item.time)) return false
       seen.add(item.time)
 
-      if (item.temperature === null && item.humidity === null) return false
-      if (item.temperature !== null && Number.isNaN(item.temperature)) return false
-      if (item.humidity !== null && Number.isNaN(item.humidity)) return false
-
-      return true
+      return item.temperature !== null || item.humidity !== null
     })
     .sort((a, b) => new Date(a.time) - new Date(b.time))
     .slice(-MAX_POINTS)
@@ -116,14 +112,10 @@ function getRange(hours) {
 function getStats(data, key) {
   const values = data
     .map((item) => item[key])
-    .filter((value) => value !== null && value !== undefined)
+    .filter((value) => value !== null && value !== undefined && Number.isFinite(value))
 
   if (!values.length) {
-    return {
-      avg: null,
-      min: null,
-      max: null,
-    }
+    return { avg: null, min: null, max: null }
   }
 
   return {
@@ -177,7 +169,6 @@ function ChartWidget() {
   async function loadDevices() {
     try {
       setError('')
-
       const payload = await getDevices()
       const list = toArray(payload)
 
@@ -385,7 +376,7 @@ function ChartWidget() {
 
       {!error && chartData.length > 0 && (
         <div className="dw-chart-wrapper">
-          <ResponsiveContainer width="100%" height="100%">
+          <ResponsiveContainer width="100%" height={360}>
             <AreaChart
               data={chartData}
               margin={{
@@ -426,29 +417,14 @@ function ChartWidget() {
               />
 
               <YAxis
-                yAxisId="left"
                 tickLine={false}
                 axisLine={false}
-                width={34}
+                width={36}
                 domain={['auto', 'auto']}
                 tick={{
                   fontSize: 12,
-                  fill: '#f87171',
-                  fontWeight: 700,
-                }}
-              />
-
-              <YAxis
-                yAxisId="right"
-                orientation="right"
-                tickLine={false}
-                axisLine={false}
-                width={34}
-                domain={[0, 100]}
-                tick={{
-                  fontSize: 12,
-                  fill: '#60a5fa',
-                  fontWeight: 700,
+                  fill: '#94a3b8',
+                  fontWeight: 600,
                 }}
               />
 
@@ -461,17 +437,9 @@ function ChartWidget() {
                 }}
               />
 
-              <Legend
-                verticalAlign="top"
-                height={38}
-                iconType="plainline"
-                formatter={(value) => (
-                  <span className="dw-legend-label">{value}</span>
-                )}
-              />
+              <Legend verticalAlign="top" height={38} />
 
               <Area
-                yAxisId="left"
                 type="monotone"
                 dataKey="temperature"
                 name="Temperature (°C)"
@@ -485,7 +453,6 @@ function ChartWidget() {
               />
 
               <Area
-                yAxisId="right"
                 type="monotone"
                 dataKey="humidity"
                 name="Humidity (%)"
