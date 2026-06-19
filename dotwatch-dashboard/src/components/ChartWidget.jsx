@@ -60,31 +60,44 @@ function formatTime(value) {
 }
 
 function normalizeHistory(payload) {
+  const seen = new Set()
+
   return toArray(payload)
     .map((item) => {
       const time = getTime(item)
+      const temperature = getNumber(
+        item.avg_temperature,
+        item.avgTemperature,
+        item.temperature
+      )
+      const humidity = getNumber(
+        item.avg_humidity,
+        item.avgHumidity,
+        item.humidity
+      )
 
       return {
         time,
         label: formatTime(time),
-        temperature: getNumber(
-          item.avg_temperature,
-          item.avgTemperature,
-          item.temperature
-        ),
-        humidity: getNumber(
-          item.avg_humidity,
-          item.avgHumidity,
-          item.humidity
-        ),
+        temperature,
+        humidity,
       }
     })
-    .filter(
-      (item) =>
-        item.time &&
-        !Number.isNaN(new Date(item.time).getTime()) &&
-        (item.temperature !== null || item.humidity !== null)
-    )
+    .filter((item) => {
+      if (!item.time) return false
+
+      const date = new Date(item.time)
+      if (Number.isNaN(date.getTime())) return false
+
+      if (seen.has(item.time)) return false
+      seen.add(item.time)
+
+      if (item.temperature === null && item.humidity === null) return false
+      if (item.temperature !== null && Number.isNaN(item.temperature)) return false
+      if (item.humidity !== null && Number.isNaN(item.humidity)) return false
+
+      return true
+    })
     .sort((a, b) => new Date(a.time) - new Date(b.time))
     .slice(-MAX_POINTS)
 }
