@@ -2487,3 +2487,80 @@ textarea:focus,
     width: 100%;
   }
 }
+
+.dw-chart-card {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 22px;
+  padding: 22px;
+  box-shadow: var(--shadow, 0 18px 45px rgba(15, 23, 42, 0.12));
+}
+
+.dw-chart-header h2 {
+  color: var(--text);
+}
+
+.dw-chart-header span {
+  color: var(--muted);
+}
+
+.dw-chart-actions select {
+  background: var(--input);
+  color: var(--text);
+  border: 1px solid var(--border);
+}
+
+.dw-export-button {
+  background: var(--primary);
+  color: #fff;
+  border: 1px solid var(--primary);
+}
+
+.dw-average-card {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.06);
+}
+
+.dw-average-card span {
+  color: var(--muted);
+}
+
+.dw-average-card strong {
+  color: var(--text);
+}
+
+.dw-average-card p {
+  color: var(--muted);
+}
+
+.dw-average-icon.temp {
+  color: #ef4444;
+  background: rgba(239, 68, 68, 0.12);
+}
+
+.dw-average-icon.hum {
+  color: #3b82f6;
+  background: rgba(59, 130, 246, 0.12);
+}
+
+.dw-chart-tooltip {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  box-shadow: 0 18px 38px rgba(15, 23, 42, 0.18);
+}
+
+.dw-chart-tooltip strong,
+.dw-tooltip-row b {
+  color: var(--text);
+}
+
+.dw-tooltip-row,
+.dw-legend-label {
+  color: var(--muted);
+}
+
+.dw-chart-wrapper {
+  height: 360px;
+  padding-top: 8px;
+}

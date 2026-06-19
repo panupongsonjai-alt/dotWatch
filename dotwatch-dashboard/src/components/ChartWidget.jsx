@@ -411,18 +411,17 @@ function ChartWidget() {
                 }}
               />
 
-              <YAxis
-                yAxisId="left"
-                tickLine={false}
-                axisLine={false}
-                width={34}
-                domain={['auto', 'auto']}
-                tick={{
-                  fontSize: 12,
-                  fill: '#f87171',
-                  fontWeight: 700,
-                }}
-              />
+              <XAxis
+  dataKey="label"
+  tickLine={false}
+  axisLine={false}
+  minTickGap={30}
+  tick={{
+    fontSize: 12,
+    fill: 'var(--muted)',
+    fontWeight: 600,
+  }}
+/>
 
               <YAxis
                 yAxisId="right"
