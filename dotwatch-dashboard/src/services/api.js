@@ -164,3 +164,15 @@ export function generateDemoHistoryNow() {
     method: 'POST',
   })
 }
+
+export async function getDeviceHistory(deviceId) {
+  const response = await fetch(
+    `${API_URL}/api/devices/${deviceId}/history`
+  )
+
+  if (!response.ok) {
+    throw new Error('Failed to fetch device history')
+  }
+
+  return response.json()
+}
