@@ -1,10 +1,15 @@
 import { auth } from './firebase'
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:4000'
+const API_URL =
+  import.meta.env.VITE_API_URL || 'http://localhost:4000'
 
 async function getToken() {
   const user = auth.currentUser
-  if (!user) throw new Error('User not logged in')
+
+  if (!user) {
+    throw new Error('User not logged in')
+  }
+
   return user.getIdToken()
 }
 
@@ -20,7 +25,8 @@ async function apiFetch(path, options = {}) {
     },
   })
 
-  const data = await response.json().catch(() => null)
+  const text = await response.text()
+  const data = text ? JSON.parse(text) : null
 
   if (!response.ok) {
     throw new Error(data?.message || 'API request failed')
@@ -31,6 +37,10 @@ async function apiFetch(path, options = {}) {
 
 export function getDevices() {
   return apiFetch('/api/devices')
+}
+
+export function getDevice(id) {
+  return apiFetch(`/api/devices/${id}`)
 }
 
 export function addDevice({ deviceCode, name, deviceSecret }) {
@@ -51,24 +61,40 @@ export function updateDeviceName(id, name) {
   })
 }
 
+export function updateDeviceGroup(id, groupName) {
+  return apiFetch(`/api/devices/${id}`, {
+    method: 'PUT',
+    body: JSON.stringify({ groupName }),
+  })
+}
+
 export function deleteDevice(id) {
   return apiFetch(`/api/devices/${id}`, {
     method: 'DELETE',
   })
 }
 
-export function getHistory(deviceId, from, to) {
-  const params = new URLSearchParams()
-  if (from) params.set('from', from)
-  if (to) params.set('to', to)
-
-  return apiFetch(`/api/devices/${deviceId}/history?${params.toString()}`)
-}
-
 export function resetDeviceSecret(id) {
   return apiFetch(`/api/devices/${id}/reset-secret`, {
     method: 'POST',
   })
+}
+
+export function getHistory(deviceId, from, to) {
+  const params = new URLSearchParams()
+
+  if (from) params.set('from', from)
+  if (to) params.set('to', to)
+
+  const query = params.toString()
+
+  return apiFetch(
+    `/api/devices/${deviceId}/history${query ? `?${query}` : ''}`
+  )
+}
+
+export function getDeviceHistory(deviceId, from, to) {
+  return getHistory(deviceId, from, to)
 }
 
 export function getAlarms() {
@@ -103,17 +129,6 @@ export function deleteAlarmRule(id) {
   return apiFetch(`/api/alarm-rules/${id}`, {
     method: 'DELETE',
   })
-}
-
-export function updateDeviceGroup(id, groupName) {
-  return apiFetch(`/api/devices/${id}`, {
-    method: 'PUT',
-    body: JSON.stringify({ groupName }),
-  })
-}
-
-export function getDevice(id) {
-  return apiFetch(`/api/devices/${id}`)
 }
 
 export function getDemoTemplates() {
@@ -163,16 +178,4 @@ export function generateDemoHistoryNow() {
   return apiFetch('/api/demo/actions/history-now', {
     method: 'POST',
   })
-}
-
-export async function getDeviceHistory(deviceId) {
-  const response = await fetch(
-    `${API_URL}/api/devices/${deviceId}/history`
-  )
-
-  if (!response.ok) {
-    throw new Error('Failed to fetch device history')
-  }
-
-  return response.json()
 }

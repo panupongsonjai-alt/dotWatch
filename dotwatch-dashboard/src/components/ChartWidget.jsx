@@ -10,43 +10,58 @@ import {
   YAxis,
 } from 'recharts'
 
-import {
-  getDevices,
-  getDeviceHistory,
-} from '../services/api'
+import { getDevices, getDeviceHistory } from '../services/api'
 
 const MAX_POINTS = 144
+
+function getArray(payload) {
+  if (Array.isArray(payload)) return payload
+  if (Array.isArray(payload?.data)) return payload.data
+  if (Array.isArray(payload?.rows)) return payload.rows
+  if (Array.isArray(payload?.readings)) return payload.readings
+  if (Array.isArray(payload?.history)) return payload.history
+  return []
+}
 
 function formatTime(value) {
   if (!value) return '--'
 
-  const date = new Date(value)
-
-  return date.toLocaleTimeString('th-TH', {
+  return new Date(value).toLocaleTimeString('th-TH', {
     hour: '2-digit',
     minute: '2-digit',
   })
 }
 
-function normalizeHistory(rows = []) {
+function normalizeHistory(payload) {
+  const rows = getArray(payload)
+
   return rows
-    .map((item) => ({
-      time: item.time || item.created_at || item.latest_time,
-      label: formatTime(item.time || item.created_at || item.latest_time),
-      temperature:
-        item.temperature != null
-          ? Number(item.temperature)
-          : null,
-      humidity:
-        item.humidity != null
-          ? Number(item.humidity)
-          : null,
-    }))
+    .map((item) => {
+      const time =
+        item.time ||
+        item.created_at ||
+        item.latest_time ||
+        item.bucket
+
+      return {
+        time,
+        label: formatTime(time),
+        temperature:
+          item.temperature != null
+            ? Number(item.temperature)
+            : null,
+        humidity:
+          item.humidity != null
+            ? Number(item.humidity)
+            : null,
+      }
+    })
     .filter(
       (item) =>
         item.time &&
         (item.temperature != null || item.humidity != null)
     )
+    .sort((a, b) => new Date(a.time) - new Date(b.time))
     .slice(-MAX_POINTS)
 }
 
@@ -55,10 +70,10 @@ function ChartWidget() {
   const [selectedDeviceId, setSelectedDeviceId] = useState('')
   const [chartData, setChartData] = useState([])
   const [chartSize, setChartSize] = useState('medium')
-  const [loading, setLoading] = useState(false)
+  const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
 
-  const lastTimeRef = useRef(null)
+  const lastSignatureRef = useRef('')
 
   const chartHeight = useMemo(() => {
     if (chartSize === 'small') return 300
@@ -68,72 +83,45 @@ function ChartWidget() {
 
   async function loadDevices() {
     try {
-      const data = await getDevices()
-      const list = Array.isArray(data) ? data : []
+      setError('')
+
+      const payload = await getDevices()
+      const list = getArray(payload)
 
       setDevices(list)
 
-      if (!selectedDeviceId && list.length > 0) {
-        setSelectedDeviceId(String(list[0].id))
+      if (list.length > 0) {
+        setSelectedDeviceId((current) =>
+          current || String(list[0].id)
+        )
       }
     } catch (err) {
       console.error(err)
-      setError('ไม่สามารถโหลดรายการอุปกรณ์ได้')
+      setError('โหลดรายการอุปกรณ์ไม่ได้')
     }
   }
 
-  async function loadHistory(deviceId, replace = false) {
+  async function loadHistory(deviceId) {
     if (!deviceId) return
 
     try {
-      setLoading(true)
-      setError('')
-
-      const rows = await getDeviceHistory(deviceId)
-      const nextData = normalizeHistory(Array.isArray(rows) ? rows : [])
-
-      if (replace) {
-        setChartData(nextData)
-        lastTimeRef.current =
-          nextData.length > 0
-            ? nextData[nextData.length - 1].time
-            : null
-        return
-      }
-
-      if (nextData.length === 0) return
+      const payload = await getDeviceHistory(deviceId)
+      const nextData = normalizeHistory(payload)
 
       const latest = nextData[nextData.length - 1]
+      const signature = latest
+        ? `${latest.time}-${latest.temperature}-${latest.humidity}-${nextData.length}`
+        : 'empty'
 
-      if (latest.time === lastTimeRef.current) {
+      if (signature === lastSignatureRef.current) {
         return
       }
 
-      setChartData((prev) => {
-        const merged = [...prev]
-
-        nextData.forEach((item) => {
-          const exists = merged.some(
-            (oldItem) => oldItem.time === item.time
-          )
-
-          if (!exists) {
-            merged.push(item)
-          }
-        })
-
-        const trimmed = merged.slice(-MAX_POINTS)
-
-        lastTimeRef.current =
-          trimmed.length > 0
-            ? trimmed[trimmed.length - 1].time
-            : null
-
-        return trimmed
-      })
+      lastSignatureRef.current = signature
+      setChartData(nextData)
     } catch (err) {
       console.error(err)
-      setError('ไม่สามารถโหลดข้อมูลกราฟได้')
+      setError('โหลดข้อมูลกราฟไม่ได้')
     } finally {
       setLoading(false)
     }
@@ -144,13 +132,19 @@ function ChartWidget() {
   }, [])
 
   useEffect(() => {
-    if (!selectedDeviceId) return
+    if (!selectedDeviceId) {
+      setLoading(false)
+      return
+    }
 
-    lastTimeRef.current = null
-    loadHistory(selectedDeviceId, true)
+    setLoading(true)
+    setChartData([])
+    lastSignatureRef.current = ''
+
+    loadHistory(selectedDeviceId)
 
     const timer = setInterval(() => {
-      loadHistory(selectedDeviceId, false)
+      loadHistory(selectedDeviceId)
     }, 5000)
 
     return () => clearInterval(timer)
@@ -208,10 +202,7 @@ function ChartWidget() {
               <option value="">No device</option>
             ) : (
               devices.map((device) => (
-                <option
-                  key={device.id}
-                  value={device.id}
-                >
+                <option key={device.id} value={device.id}>
                   {device.name ||
                     device.device_code ||
                     `Device ${device.id}`}
@@ -248,7 +239,7 @@ function ChartWidget() {
         </div>
       )}
 
-      {!error && loading && chartData.length === 0 && (
+      {!error && loading && (
         <div className="chart-message">
           กำลังโหลดข้อมูล...
         </div>
@@ -256,19 +247,16 @@ function ChartWidget() {
 
       {!error && !loading && chartData.length === 0 && (
         <div className="chart-message">
-          ยังไม่มีข้อมูลสำหรับอุปกรณ์นี้
+          ยังไม่มีข้อมูลกราฟสำหรับอุปกรณ์นี้
         </div>
       )}
 
-      {chartData.length > 0 && (
+      {!error && chartData.length > 0 && (
         <div
           className="chart-wrapper"
           style={{ height: chartHeight }}
         >
-          <ResponsiveContainer
-            width="100%"
-            height="100%"
-          >
+          <ResponsiveContainer width="100%" height="100%">
             <AreaChart
               data={chartData}
               margin={{
@@ -286,16 +274,8 @@ function ChartWidget() {
                   x2="0"
                   y2="1"
                 >
-                  <stop
-                    offset="5%"
-                    stopColor="#ef4444"
-                    stopOpacity={0.35}
-                  />
-                  <stop
-                    offset="95%"
-                    stopColor="#ef4444"
-                    stopOpacity={0}
-                  />
+                  <stop offset="5%" stopColor="#ef4444" stopOpacity={0.35} />
+                  <stop offset="95%" stopColor="#ef4444" stopOpacity={0} />
                 </linearGradient>
 
                 <linearGradient
@@ -305,23 +285,12 @@ function ChartWidget() {
                   x2="0"
                   y2="1"
                 >
-                  <stop
-                    offset="5%"
-                    stopColor="#2563eb"
-                    stopOpacity={0.35}
-                  />
-                  <stop
-                    offset="95%"
-                    stopColor="#2563eb"
-                    stopOpacity={0}
-                  />
+                  <stop offset="5%" stopColor="#2563eb" stopOpacity={0.35} />
+                  <stop offset="95%" stopColor="#2563eb" stopOpacity={0} />
                 </linearGradient>
               </defs>
 
-              <CartesianGrid
-                strokeDasharray="3 3"
-                vertical={false}
-              />
+              <CartesianGrid strokeDasharray="3 3" vertical={false} />
 
               <XAxis
                 dataKey="label"
@@ -340,28 +309,9 @@ function ChartWidget() {
               <Tooltip
                 animationDuration={0}
                 labelFormatter={(label) => `เวลา ${label}`}
-                formatter={(value, name) => {
-                  if (name === 'temperature') {
-                    return [`${Number(value).toFixed(1)} °C`, 'Temperature']
-                  }
-
-                  if (name === 'humidity') {
-                    return [`${Number(value).toFixed(1)} %`, 'Humidity']
-                  }
-
-                  return [value, name]
-                }}
-                contentStyle={{
-                  border: 'none',
-                  borderRadius: 14,
-                  boxShadow: '0 18px 40px rgba(15, 23, 42, 0.18)',
-                }}
               />
 
-              <Legend
-                verticalAlign="top"
-                height={36}
-              />
+              <Legend verticalAlign="top" height={36} />
 
               <Area
                 type="monotone"
