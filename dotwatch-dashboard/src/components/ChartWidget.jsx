@@ -25,6 +25,8 @@ function toArray(payload) {
 
 function getTime(item) {
   return (
+    item.bucket_time ||
+    item.bucketTime ||
     item.time ||
     item.bucket ||
     item.created_at ||
@@ -32,6 +34,17 @@ function getTime(item) {
     item.latest_time ||
     item.latestTime
   )
+}
+
+function getNumber(...values) {
+  for (const value of values) {
+    if (value !== null && value !== undefined && value !== '') {
+      const number = Number(value)
+      if (!Number.isNaN(number)) return number
+    }
+  }
+
+  return null
 }
 
 function formatTime(value) {
@@ -55,21 +68,23 @@ function normalizeHistory(payload) {
       return {
         time,
         label: formatTime(time),
-        temperature:
-          item.temperature != null
-            ? Number(item.temperature)
-            : null,
-        humidity:
-          item.humidity != null
-            ? Number(item.humidity)
-            : null,
+        temperature: getNumber(
+          item.avg_temperature,
+          item.avgTemperature,
+          item.temperature
+        ),
+        humidity: getNumber(
+          item.avg_humidity,
+          item.avgHumidity,
+          item.humidity
+        ),
       }
     })
     .filter(
       (item) =>
         item.time &&
         !Number.isNaN(new Date(item.time).getTime()) &&
-        (item.temperature != null || item.humidity != null)
+        (item.temperature !== null || item.humidity !== null)
     )
     .sort((a, b) => new Date(a.time) - new Date(b.time))
     .slice(-MAX_POINTS)
@@ -103,6 +118,8 @@ function ChartWidget() {
 
   async function loadDevices() {
     try {
+      setError('')
+
       const payload = await getDevices()
       const list = toArray(payload)
 
@@ -113,7 +130,8 @@ function ChartWidget() {
       }
     } catch (err) {
       console.error('loadDevices error:', err)
-      setError('โหลดรายการอุปกรณ์ไม่ได้')
+      setError(err.message || 'โหลดรายการอุปกรณ์ไม่ได้')
+    } finally {
       setLoading(false)
     }
   }
@@ -127,9 +145,6 @@ function ChartWidget() {
       const { from, to } = getDefaultRange()
       const payload = await getHistory(deviceId, from, to)
       const nextData = normalizeHistory(payload)
-
-      console.log('history payload:', payload)
-      console.log('chart data:', nextData)
 
       const latest = nextData[nextData.length - 1]
       const signature = latest
@@ -155,10 +170,7 @@ function ChartWidget() {
   }, [])
 
   useEffect(() => {
-    if (!selectedDeviceId) {
-      setLoading(false)
-      return
-    }
+    if (!selectedDeviceId) return
 
     setLoading(true)
     setChartData([])
@@ -301,7 +313,20 @@ function ChartWidget() {
                 domain={['auto', 'auto']}
               />
 
-              <Tooltip animationDuration={0} />
+              <Tooltip
+                animationDuration={0}
+                formatter={(value, name) => {
+                  if (name === 'Temperature') {
+                    return [`${Number(value).toFixed(1)} °C`, name]
+                  }
+
+                  if (name === 'Humidity') {
+                    return [`${Number(value).toFixed(1)} %`, name]
+                  }
+
+                  return [value, name]
+                }}
+              />
 
               <Legend verticalAlign="top" height={36} />
 
