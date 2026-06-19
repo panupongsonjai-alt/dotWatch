@@ -26,10 +26,26 @@ async function apiFetch(path, options = {}) {
   })
 
   const text = await response.text()
-  const data = text ? JSON.parse(text) : null
+
+  let data = null
+  try {
+    data = text ? JSON.parse(text) : null
+  } catch {
+    data = { message: text }
+  }
 
   if (!response.ok) {
-    throw new Error(data?.message || 'API request failed')
+    console.error('API ERROR:', {
+      path,
+      status: response.status,
+      data,
+    })
+
+    throw new Error(
+      data?.message ||
+        data?.error ||
+        `API request failed: ${response.status}`
+    )
   }
 
   return data
