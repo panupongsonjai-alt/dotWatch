@@ -195,3 +195,14 @@ export function generateDemoHistoryNow() {
     method: 'POST',
   })
 }
+
+export function updateDeviceLocation(id, data) {
+  return apiFetch(`/api/devices/${id}`, {
+    method: 'PUT',
+    body: JSON.stringify({
+      latitude: data.latitude,
+      longitude: data.longitude,
+      mapUrl: data.mapUrl,
+    }),
+  })
+}

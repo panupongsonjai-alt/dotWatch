@@ -15,6 +15,9 @@ export async function listDevices(req, res) {
       d.status,
       d.last_seen_at,
       d.firmware_version,
+      d.latitude,
+      d.longitude,
+      d.map_url,
       lr.temperature,
       lr.humidity,
       lr.rssi,
@@ -38,7 +41,6 @@ export async function listDevices(req, res) {
 
 export async function createDevice(req, res) {
   const user = req.dbUser
-
   const name = req.body.name || 'New Device'
 
   const deviceCode =
@@ -59,7 +61,7 @@ export async function createDevice(req, res) {
       secret_hash
     )
     VALUES ($1, $2, $3, $4)
-    RETURNING id, device_code, name, group_name, created_at
+    RETURNING id, device_code, name, group_name, latitude, longitude, map_url, created_at
     `,
     [user.id, deviceCode, name, secretHash]
   )
@@ -85,6 +87,9 @@ export async function getDevice(req, res) {
       d.last_seen_at,
       d.last_ingest_at,
       d.firmware_version,
+      d.latitude,
+      d.longitude,
+      d.map_url,
       lr.temperature,
       lr.humidity,
       lr.rssi,
@@ -116,19 +121,48 @@ export async function getDevice(req, res) {
 export async function updateDevice(req, res) {
   const user = req.dbUser
   const { id } = req.params
-  const { name, groupName } = req.body
+
+  const {
+    name,
+    groupName,
+    latitude,
+    longitude,
+    mapUrl,
+  } = req.body
 
   const result = await pool.query(
     `
     UPDATE devices
     SET
       name = COALESCE($1, name),
-      group_name = COALESCE($2, group_name)
-    WHERE id = $3
-      AND user_id = $4
-    RETURNING id, device_code, name, group_name
+      group_name = COALESCE($2, group_name),
+      latitude = COALESCE($3, latitude),
+      longitude = COALESCE($4, longitude),
+      map_url = COALESCE($5, map_url)
+    WHERE id = $6
+      AND user_id = $7
+    RETURNING
+      id,
+      device_code,
+      name,
+      group_name,
+      status,
+      last_seen_at,
+      last_ingest_at,
+      firmware_version,
+      latitude,
+      longitude,
+      map_url
     `,
-    [name || null, groupName || null, id, user.id]
+    [
+      name ?? null,
+      groupName ?? null,
+      latitude ?? null,
+      longitude ?? null,
+      mapUrl ?? null,
+      id,
+      user.id,
+    ]
   )
 
   if (!result.rows.length) {
@@ -243,6 +277,7 @@ export async function getHistory(req, res) {
       WHERE device_id = $1
         AND time BETWEEN $2 AND $3
       ORDER BY time ASC
+      LIMIT 288
     `
   } else if (diffDays <= 30) {
     query = `
@@ -258,6 +293,7 @@ export async function getHistory(req, res) {
       WHERE device_id = $1
         AND bucket BETWEEN $2 AND $3
       ORDER BY bucket ASC
+      LIMIT 500
     `
   } else {
     query = `
@@ -273,6 +309,7 @@ export async function getHistory(req, res) {
       WHERE device_id = $1
         AND bucket BETWEEN $2 AND $3
       ORDER BY bucket ASC
+      LIMIT 500
     `
   }
 

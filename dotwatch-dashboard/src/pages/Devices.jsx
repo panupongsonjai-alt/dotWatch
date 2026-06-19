@@ -1,6 +1,15 @@
 import React, { useEffect, useState } from 'react'
 import DeviceCard from '../components/DeviceCard.jsx'
-import { getDevices, addDevice, deleteDevice, updateDeviceName, updateDeviceGroup, resetDeviceSecret,} from '../services/api'
+import {
+  getDevices,
+  addDevice,
+  deleteDevice,
+  updateDeviceName,
+  updateDeviceGroup,
+  resetDeviceSecret,
+  updateDeviceLocation,
+} from '../services/api'
+import { parseGoogleMapLink } from '../utils/parseGoogleMapLink'
 
 function createDeviceCode() {
   return `dotwatch-${Date.now()}`
@@ -17,6 +26,7 @@ function Device() {
   const [editingName, setEditingName] = useState('')
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
+  const [mapLinks, setMapLinks] = useState({})
 
   async function loadDevices() {
     try {
@@ -35,7 +45,7 @@ function Device() {
     loadDevices()
   }, [])
 
-  const handleAddDevice = async () => {
+  async function handleAddDevice() {
     try {
       const name = deviceName.trim() || `dotWatch ${devices.length + 1}`
       const deviceCode = createDeviceCode()
@@ -63,7 +73,7 @@ function Device() {
     }
   }
 
-  const handleSaveDeviceName = async (deviceId) => {
+  async function handleSaveDeviceName(deviceId) {
     if (!editingName.trim()) {
       alert('กรุณากรอกชื่อ Device')
       return
@@ -83,7 +93,7 @@ function Device() {
     }
   }
 
-  const handleDeleteDevice = async (deviceId) => {
+  async function handleDeleteDevice(deviceId) {
     const ok = confirm('ต้องการลบ Device นี้ใช่ไหม?')
     if (!ok) return
 
@@ -99,7 +109,7 @@ function Device() {
     }
   }
 
-  const handleResetSecret = async (device) => {
+  async function handleResetSecret(device) {
     const ok = confirm(
       `ต้องการ Reset Secret ของ ${device.name || device.device_code} ใช่ไหม?\n\nSecret เดิมจะใช้งานไม่ได้ทันที`
     )
@@ -108,7 +118,6 @@ function Device() {
 
     try {
       setSaving(true)
-
       const result = await resetDeviceSecret(device.id)
       await loadDevices()
 
@@ -123,22 +132,46 @@ function Device() {
     }
   }
 
-  const handleChangeGroup = async (
-  deviceId,
-  groupName
-) => {
-  try {
-    await updateDeviceGroup(
-      deviceId,
-      groupName
-    )
-
-    await loadDevices()
-  } catch (error) {
-    console.error(error)
-    alert('อัปเดต Group ไม่สำเร็จ')
+  async function handleChangeGroup(deviceId, groupName) {
+    try {
+      setSaving(true)
+      await updateDeviceGroup(deviceId, groupName)
+      await loadDevices()
+    } catch (error) {
+      console.error(error)
+      alert('อัปเดต Group ไม่สำเร็จ')
+    } finally {
+      setSaving(false)
+    }
   }
-}
+
+  async function handleSaveLocation(deviceId) {
+    const mapUrl = mapLinks[deviceId] || ''
+    const position = parseGoogleMapLink(mapUrl)
+
+    if (!position) {
+      alert('ไม่พบพิกัดใน Google Maps Link')
+      return
+    }
+
+    try {
+      setSaving(true)
+
+      await updateDeviceLocation(deviceId, {
+        latitude: position.latitude,
+        longitude: position.longitude,
+        mapUrl,
+      })
+
+      await loadDevices()
+      alert('บันทึกตำแหน่ง Device สำเร็จ')
+    } catch (error) {
+      console.error('Save location error:', error)
+      alert(error.message || 'บันทึกตำแหน่งไม่สำเร็จ')
+    } finally {
+      setSaving(false)
+    }
+  }
 
   return (
     <div className="page">
@@ -227,46 +260,22 @@ function Device() {
                 )}
 
                 <div className="device-group-row">
+                  <label>Group</label>
 
-  <label>
-    Group
-  </label>
-
-  <select
-    value={
-      device.group_name ||
-      'Default'
-    }
-    onChange={(e) =>
-      handleChangeGroup(
-        device.id,
-        e.target.value
-      )
-    }
-  >
-    <option value="Default">
-      Default
-    </option>
-
-    <option value="Server Room">
-      Server Room
-    </option>
-
-    <option value="Warehouse">
-      Warehouse
-    </option>
-
-    <option value="Factory">
-      Factory
-    </option>
-
-    <option value="Demo">
-      Demo
-    </option>
-
-  </select>
-
-</div>
+                  <select
+                    value={device.group_name || 'Default'}
+                    disabled={saving}
+                    onChange={(e) =>
+                      handleChangeGroup(device.id, e.target.value)
+                    }
+                  >
+                    <option value="Default">Default</option>
+                    <option value="Server Room">Server Room</option>
+                    <option value="Warehouse">Warehouse</option>
+                    <option value="Factory">Factory</option>
+                    <option value="Demo">Demo</option>
+                  </select>
+                </div>
 
                 <DeviceCard
                   device={{
@@ -275,6 +284,35 @@ function Device() {
                     lastSeen: device.latest_time || device.last_seen_at,
                   }}
                 />
+
+                <div className="device-map-url-box">
+                  <input
+                    value={mapLinks[device.id] ?? device.map_url ?? ''}
+                    disabled={saving}
+                    onChange={(event) =>
+                      setMapLinks((prev) => ({
+                        ...prev,
+                        [device.id]: event.target.value,
+                      }))
+                    }
+                    placeholder="Paste Google Maps link"
+                  />
+
+                  <button
+                    type="button"
+                    disabled={saving}
+                    onClick={() => handleSaveLocation(device.id)}
+                  >
+                    Save Location
+                  </button>
+                </div>
+
+                {device.latitude != null && device.longitude != null && (
+                  <div className="device-location-preview">
+                    Lat: {Number(device.latitude).toFixed(6)} | Lng:{' '}
+                    {Number(device.longitude).toFixed(6)}
+                  </div>
+                )}
 
                 <div className="device-actions">
                   {editingDeviceId !== device.id && (
