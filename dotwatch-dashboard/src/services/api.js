@@ -115,3 +115,19 @@ export function updateDeviceGroup(id, groupName) {
 export function getDevice(id) {
   return apiFetch(`/api/devices/${id}`)
 }
+
+export function getDemoTemplates() {
+  return apiFetch('/api/demo/templates')
+}
+
+export function createDemoTemplate(templateKey) {
+  return apiFetch(`/api/demo/templates/${templateKey}`, {
+    method: 'POST',
+  })
+}
+
+export function deleteDemoData() {
+  return apiFetch('/api/demo/data', {
+    method: 'DELETE',
+  })
+}

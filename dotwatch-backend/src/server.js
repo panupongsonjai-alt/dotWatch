@@ -12,6 +12,7 @@ import { errorHandler } from './middlewares/errorHandler.js'
 import { markOfflineDevices } from './services/deviceStatus.service.js'
 import { alarmsRouter } from './routes/alarms.routes.js'
 import { alarmRulesRouter } from './routes/alarmRules.routes.js'
+import { demoRouter } from './routes/demo.routes.js'
 
 const app = express()
 const server = http.createServer(app)
@@ -64,9 +65,10 @@ app.get('/health', (req, res) => {
 })
 
 app.use('/api/devices', apiLimiter, devicesRouter)
+app.use('/api/demo', apiLimiter, demoRouter)
 app.use('/api/ingest', ingestLimiter, ingestRouter)
 app.use('/api/alarms', apiLimiter, alarmsRouter)
-app.use('/api/alarm-rules',apiLimiter,alarmRulesRouter)
+app.use('/api/alarm-rules', apiLimiter, alarmRulesRouter)
 
 setInterval(async () => {
   try {
