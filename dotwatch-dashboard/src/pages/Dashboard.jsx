@@ -194,26 +194,24 @@ function Dashboard({ onOpenDevice }) {
             {devices.map((device) => (
               <div
                 key={device.id}
-                className="overview-card"
+                className="overview-card compact"
                 onClick={() => onOpenDevice?.(device.id)}
               >
                 <div className="overview-name">
-                  {device.name || device.device_code || 'Unnamed Device'}
+                  {device.name || device.device_code}
                 </div>
 
-                <div className="overview-metric">
-                  🌡️
+                <div className="overview-values">
                   <span>
+                    🌡️{' '}
                     {device.temperature != null
                       ? Number(device.temperature).toFixed(1)
                       : '--'}
                     °C
                   </span>
-                </div>
 
-                <div className="overview-metric">
-                  💧
                   <span>
+                    💧{' '}
                     {device.humidity != null
                       ? Number(device.humidity).toFixed(1)
                       : '--'}
