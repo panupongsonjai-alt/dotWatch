@@ -17,10 +17,10 @@ import {
   CheckCircle2,
   Copy,
   ShieldCheck,
-  ChevronDown,
 } from 'lucide-react'
 
 import LocationPicker from '../components/LocationPicker.jsx'
+import MetricConfigPanel from '../components/MetricConfigPanel.jsx'
 import {
   getDevices,
   addDevice,
@@ -79,201 +79,52 @@ const defaultRuleForm = {
   severity: 'critical',
 }
 
-const METRIC_PRESETS = [
+const DEFAULT_ALARM_METRICS = [
+  { value: 'temperature', label: 'Temperature', unit: '°C' },
+  { value: 'humidity', label: 'Humidity', unit: '%' },
+  { value: 'rssi', label: 'Signal', unit: 'dBm' },
+]
+
+const DEFAULT_DEVICE_MODELS = [
   {
-    key: 'temperature',
-    label: 'Temperature',
-    displayName: 'Temperature',
-    unit: '°C',
-    icon: '🌡️',
+    id: 1,
+    model_key: 'dw_2ch',
+    model_name: 'dotWatch 2CH',
+    metric_count: 2,
+    description: 'ESP รุ่นอ่าน 2 ค่า',
   },
   {
-    key: 'humidity',
-    label: 'Humidity',
-    displayName: 'Humidity',
-    unit: '%',
-    icon: '💧',
+    id: 2,
+    model_key: 'dw_10ch',
+    model_name: 'dotWatch 10CH',
+    metric_count: 10,
+    description: 'ESP รุ่นอ่าน 10 ค่า',
   },
   {
-    key: 'rssi',
-    label: 'WiFi Signal',
-    displayName: 'Signal',
-    unit: 'dBm',
-    icon: '📶',
-  },
-  {
-    key: 'voltage',
-    label: 'Voltage',
-    displayName: 'Voltage',
-    unit: 'V',
-    icon: '⚡',
-  },
-  {
-    key: 'current',
-    label: 'Current',
-    displayName: 'Current',
-    unit: 'A',
-    icon: '🔌',
-  },
-  {
-    key: 'power',
-    label: 'Power',
-    displayName: 'Power',
-    unit: 'W',
-    icon: '⚙️',
-  },
-  {
-    key: 'energy',
-    label: 'Energy',
-    displayName: 'Energy',
-    unit: 'kWh',
-    icon: '🔋',
-  },
-  {
-    key: 'pressure',
-    label: 'Pressure',
-    displayName: 'Pressure',
-    unit: 'bar',
-    icon: '🧭',
-  },
-  {
-    key: 'supply_air',
-    label: 'Supply Air',
-    displayName: 'Supply Air',
-    unit: '°C',
-    icon: '🌬️',
-  },
-  {
-    key: 'return_air',
-    label: 'Return Air',
-    displayName: 'Return Air',
-    unit: '°C',
-    icon: '↩️',
+    id: 3,
+    model_key: 'custom',
+    model_name: 'Custom Device',
+    metric_count: 0,
+    description: 'กำหนด Metric เองในอนาคต',
   },
 ]
 
-const METRIC_ICON_OPTIONS = [
-  '📊',
-  '🌡️',
-  '💧',
-  '📶',
-  '⚡',
-  '🔌',
-  '🔋',
-  '⚙️',
-  '🧭',
-  '🌬️',
-  '↩️',
-  '🔥',
-  '❄️',
-  '💨',
-  '💡',
-  '🚰',
-  '📈',
-  '📉',
-  '🚨',
-  '✅',
-]
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:4000'
 
-const DEFAULT_METRIC_CONFIG = [
-  {
-    id: 'temperature',
-    sourceKey: 'temperature',
-    displayName: 'Temperature',
-    unit: '°C',
-    icon: '🌡️',
-    enabled: true,
-  },
-  {
-    id: 'humidity',
-    sourceKey: 'humidity',
-    displayName: 'Humidity',
-    unit: '%',
-    icon: '💧',
-    enabled: true,
-  },
-]
+async function getDeviceModels() {
+  const response = await fetch(`${API_URL}/api/device-models`)
+  const data = await response.json().catch(() => null)
 
-const DEVICE_METRIC_STORAGE_KEY = 'dotwatch_device_metric_config_v1'
-
-function readMetricConfigs() {
-  try {
-    const raw = localStorage.getItem(DEVICE_METRIC_STORAGE_KEY)
-    return raw ? JSON.parse(raw) : {}
-  } catch {
-    return {}
-  }
-}
-
-function writeMetricConfigs(configs) {
-  localStorage.setItem(DEVICE_METRIC_STORAGE_KEY, JSON.stringify(configs))
-}
-
-function normalizeMetricConfig(config) {
-  if (!Array.isArray(config) || config.length === 0) {
-    return DEFAULT_METRIC_CONFIG
+  if (!response.ok) {
+    throw new Error(data?.message || 'โหลด Device Model ไม่สำเร็จ')
   }
 
-  return config.map((metric, index) => ({
-    id: metric.id || `${metric.sourceKey || 'metric'}-${index}`,
-    sourceKey: metric.sourceKey || 'temperature',
-    displayName: metric.displayName ?? metric.label ?? metric.sourceKey ?? '',
-    unit: metric.unit ?? '',
-    icon: metric.icon || '📊',
-    enabled: metric.enabled !== false,
-  }))
-}
-
-function getPresetByKey(key) {
-  return METRIC_PRESETS.find((preset) => preset.key === key)
-}
-
-function getPresetByLabel(label) {
-  const normalized = String(label || '')
-    .trim()
-    .toLowerCase()
-
-  return METRIC_PRESETS.find(
-    (preset) =>
-      preset.label.toLowerCase() === normalized ||
-      preset.displayName.toLowerCase() === normalized ||
-      preset.key.toLowerCase() === normalized
-  )
-}
-
-function createMetricKey(name) {
-  return String(name || '')
-    .trim()
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, '_')
-    .replace(/^_+|_+$/g, '')
-}
-
-function getMetricInputValue(metric) {
-  return metric.displayName ?? ''
-}
-
-function getDeviceMetricValue(device, metric) {
-  const value = device?.[metric.sourceKey]
-
-  if (value == null || value === '' || Number.isNaN(Number(value))) {
-    return `--${metric.unit || ''}`
-  }
-
-  const numberValue = Number(value)
-  const fixedValue = Number.isInteger(numberValue)
-    ? String(numberValue)
-    : numberValue.toFixed(1)
-
-  return `${fixedValue}${metric.unit || ''}`
+  return Array.isArray(data) ? data : []
 }
 
 function Devices() {
   const [devices, setDevices] = useState([])
-  const [metricConfigs, setMetricConfigs] = useState(() => readMetricConfigs())
-  const [metricDrafts, setMetricDrafts] = useState(() => readMetricConfigs())
-  const [dirtyMetricDevices, setDirtyMetricDevices] = useState({})
-  const [metricMessages, setMetricMessages] = useState({})
+  const [deviceModels, setDeviceModels] = useState(DEFAULT_DEVICE_MODELS)
   const [expandedDeviceId, setExpandedDeviceId] = useState(null)
   const [editingDeviceId, setEditingDeviceId] = useState(null)
   const [editingName, setEditingName] = useState('')
@@ -291,6 +142,7 @@ function Devices() {
   const [createdDevice, setCreatedDevice] = useState(null)
   const [createForm, setCreateForm] = useState({
     name: '',
+    modelId: DEFAULT_DEVICE_MODELS[0].id,
     latitude: null,
     longitude: null,
     deviceCode: '',
@@ -319,9 +171,20 @@ function Devices() {
     }
   }
 
+  async function loadDeviceModels() {
+    try {
+      const data = await getDeviceModels()
+      setDeviceModels(data.length > 0 ? data : DEFAULT_DEVICE_MODELS)
+    } catch (error) {
+      console.error('Load device models error:', error)
+      setDeviceModels(DEFAULT_DEVICE_MODELS)
+    }
+  }
+
   useEffect(() => {
     loadDevices()
     loadAlarmRules()
+    loadDeviceModels()
   }, [])
 
   const filteredDevices = devices
@@ -330,9 +193,29 @@ function Devices() {
   const warningCount = devices.filter((d) => getStatus(d) === 'warning').length
   const offlineCount = devices.length - onlineCount - warningCount
 
+  function getSelectedCreateModel() {
+    return (
+      deviceModels.find(
+        (model) => Number(model.id) === Number(createForm.modelId)
+      ) ||
+      deviceModels[0] ||
+      DEFAULT_DEVICE_MODELS[0]
+    )
+  }
+
+  function getDeviceModelLabel(device) {
+    return device.model_name || device.modelName || 'No Model'
+  }
+
+  function getDeviceModelMeta(device) {
+    if (device.metric_count != null) return `${device.metric_count} Metrics`
+    return device.model_key || device.modelKey || 'Model not set'
+  }
+
   function openCreateWizard() {
     setCreateForm({
       name: '',
+      modelId: deviceModels[0]?.id || DEFAULT_DEVICE_MODELS[0].id,
       latitude: null,
       longitude: null,
       deviceCode: createDeviceCode(),
@@ -380,10 +263,13 @@ function Devices() {
 
       const name = createForm.name.trim() || `dotWatch ${devices.length + 1}`
 
+      const selectedModel = getSelectedCreateModel()
+
       const created = await addDevice({
         deviceCode: createForm.deviceCode,
         name,
         deviceSecret: createForm.deviceSecret,
+        modelId: selectedModel.id,
       })
 
       if (createForm.latitude != null && createForm.longitude != null) {
@@ -405,6 +291,9 @@ function Devices() {
         name,
         deviceCode: created.device_code || createForm.deviceCode,
         deviceSecret: created.deviceSecret || createForm.deviceSecret,
+        modelId: selectedModel.id,
+        modelName: selectedModel.model_name,
+        metricCount: selectedModel.metric_count,
         latitude: createForm.latitude,
         longitude: createForm.longitude,
       })
@@ -518,14 +407,8 @@ function Devices() {
     return ruleDrafts[deviceId] || defaultRuleForm
   }
 
-  function getAlarmMetricOptions(deviceId) {
-    return getDeviceMetricConfig(deviceId)
-      .filter((metric) => metric.enabled && metric.sourceKey)
-      .map((metric) => ({
-        value: metric.sourceKey,
-        label: metric.displayName,
-        unit: metric.unit,
-      }))
+  function getAlarmMetricOptions() {
+    return DEFAULT_ALARM_METRICS
   }
 
   function getMetricDisplayName(deviceId, metricKey) {
@@ -639,343 +522,6 @@ function Devices() {
     }
   }
 
-  function getDeviceMetricConfig(deviceId) {
-    return normalizeMetricConfig(metricConfigs[deviceId])
-  }
-
-  function getDeviceMetricDraftConfig(deviceId) {
-    return normalizeMetricConfig(
-      metricDrafts[deviceId] || metricConfigs[deviceId]
-    )
-  }
-
-  function markMetricDirty(deviceId, message = '') {
-    setDirtyMetricDevices((prev) => ({
-      ...prev,
-      [deviceId]: true,
-    }))
-
-    setMetricMessages((prev) => ({
-      ...prev,
-      [deviceId]: message,
-    }))
-  }
-
-  function updateDeviceMetricDraft(deviceId, nextConfig, message = '') {
-    const normalized = normalizeMetricConfig(nextConfig)
-
-    setMetricDrafts((prev) => ({
-      ...prev,
-      [deviceId]: normalized,
-    }))
-
-    markMetricDirty(deviceId, message)
-  }
-
-  function updateDeviceMetric(deviceId, metricId, key, value) {
-    const currentConfig = getDeviceMetricDraftConfig(deviceId)
-    const nextConfig = currentConfig.map((metric) => {
-      if (metric.id !== metricId) return metric
-
-      if (key === 'metricName') {
-        const nextName = value
-
-        return {
-          ...metric,
-          sourceKey: createMetricKey(nextName),
-          displayName: nextName,
-        }
-      }
-
-      return {
-        ...metric,
-        [key]: value,
-      }
-    })
-
-    updateDeviceMetricDraft(
-      deviceId,
-      nextConfig,
-      'มีการแก้ไข Metric Display แล้ว กรุณากด Save Display'
-    )
-  }
-
-  function addDeviceMetric(deviceId) {
-    const nextId = `metric-${Date.now()}`
-    const nextConfig = [
-      ...getDeviceMetricDraftConfig(deviceId),
-      {
-        id: nextId,
-        sourceKey: '',
-        displayName: '',
-        unit: '',
-        icon: '📊',
-        enabled: true,
-      },
-    ]
-
-    updateDeviceMetricDraft(
-      deviceId,
-      nextConfig,
-      'เพิ่ม Metric ใหม่แล้ว กรุณากด Save Display'
-    )
-  }
-
-  function removeDeviceMetric(deviceId, metricId) {
-    const currentConfig = getDeviceMetricDraftConfig(deviceId)
-
-    if (currentConfig.length <= 1) {
-      alert('ต้องมี Metric อย่างน้อย 1 รายการ')
-      return
-    }
-
-    updateDeviceMetricDraft(
-      deviceId,
-      currentConfig.filter((metric) => metric.id !== metricId),
-      'ลบ Metric แล้ว กรุณากด Save Display'
-    )
-  }
-
-  function resetDeviceMetrics(deviceId) {
-    const ok = confirm('ต้องการ Reset การแสดงผล Metric กลับค่าเริ่มต้นใช่ไหม?')
-    if (!ok) return
-
-    updateDeviceMetricDraft(
-      deviceId,
-      DEFAULT_METRIC_CONFIG,
-      'Reset ค่าเริ่มต้นแล้ว กรุณากด Save Display'
-    )
-  }
-
-  function cancelDeviceMetricChanges(deviceId) {
-    setMetricDrafts((prev) => ({
-      ...prev,
-      [deviceId]: getDeviceMetricConfig(deviceId),
-    }))
-
-    setDirtyMetricDevices((prev) => ({
-      ...prev,
-      [deviceId]: false,
-    }))
-
-    setMetricMessages((prev) => ({
-      ...prev,
-      [deviceId]: '',
-    }))
-  }
-
-  function handleSaveDeviceMetrics(deviceId) {
-    const draftConfig = getDeviceMetricDraftConfig(deviceId)
-    const enabledWithoutName = draftConfig.some(
-      (metric) => metric.enabled && !String(metric.displayName || '').trim()
-    )
-
-    if (enabledWithoutName) {
-      alert('กรุณากรอก Metric Name ของรายการที่เปิด Show ก่อนบันทึก')
-      return
-    }
-
-    const normalized = draftConfig.map((metric) => ({
-      ...metric,
-      displayName: String(metric.displayName || '').trim(),
-      unit: String(metric.unit || '').trim(),
-      sourceKey: createMetricKey(metric.displayName),
-    }))
-
-    setMetricConfigs((prev) => {
-      const next = {
-        ...prev,
-        [deviceId]: normalized,
-      }
-
-      writeMetricConfigs(next)
-      window.dispatchEvent(new Event('metricDisplayConfigChanged'))
-      return next
-    })
-
-    setMetricDrafts((prev) => ({
-      ...prev,
-      [deviceId]: normalized,
-    }))
-
-    setDirtyMetricDevices((prev) => ({
-      ...prev,
-      [deviceId]: false,
-    }))
-
-    setMetricMessages((prev) => ({
-      ...prev,
-      [deviceId]: 'บันทึกแล้ว และหน้าอื่นจะใช้ชื่อ/หน่วยนี้ทันที',
-    }))
-  }
-
-  function renderMetricDisplayConfig(device) {
-    const config = getDeviceMetricDraftConfig(device.id)
-    const hasUnsavedChanges = Boolean(dirtyMetricDevices[device.id])
-    const metricMessage = metricMessages[device.id]
-
-    return (
-      <div className="device-metric-config-section">
-        <div className="device-location-header">
-          <strong>
-            <Cpu size={16} />
-            Metric Display Config
-          </strong>
-          <span>ตั้งชื่อและหน่วยที่ต้องการให้ Device นี้แสดงผลในทุกหน้า</span>
-        </div>
-
-        <div className="metric-config-help">
-          พิมพ์ชื่อ Metric และ Unit ได้เอง เช่น Supply Air / °C, Energy / kWh
-          แล้วเลือก Icon ที่ต้องการแสดงผล จากนั้นกด Save Display เพื่อให้
-          Dashboard, Alarm Rules และ Alarm Center ใช้ค่าที่ตั้งไว้
-        </div>
-
-        {metricMessage && (
-          <div
-            className={
-              hasUnsavedChanges
-                ? 'metric-config-note warning'
-                : 'metric-config-note success'
-            }
-          >
-            {metricMessage}
-          </div>
-        )}
-
-        <div className="metric-config-list">
-          {config.map((metric) => (
-            <div key={metric.id} className="metric-config-row">
-              <label>
-                Metric Name
-                <input
-                  value={getMetricInputValue(metric)}
-                  disabled={saving}
-                  placeholder="เช่น Temperature, Supply Air, Energy"
-                  onChange={(e) =>
-                    updateDeviceMetric(
-                      device.id,
-                      metric.id,
-                      'metricName',
-                      e.target.value
-                    )
-                  }
-                />
-              </label>
-
-              <label>
-                Unit
-                <input
-                  value={metric.unit}
-                  disabled={saving}
-                  placeholder="เช่น °C, %, kWh, V, A"
-                  onChange={(e) =>
-                    updateDeviceMetric(
-                      device.id,
-                      metric.id,
-                      'unit',
-                      e.target.value
-                    )
-                  }
-                />
-              </label>
-
-              <label>
-                Icon
-                <select
-                  value={metric.icon}
-                  disabled={saving}
-                  onChange={(e) =>
-                    updateDeviceMetric(
-                      device.id,
-                      metric.id,
-                      'icon',
-                      e.target.value
-                    )
-                  }
-                >
-                  {METRIC_ICON_OPTIONS.map((icon) => (
-                    <option key={icon} value={icon}>
-                      {icon}
-                    </option>
-                  ))}
-                </select>
-              </label>
-
-              <label className="metric-config-toggle">
-                Show
-                <input
-                  type="checkbox"
-                  checked={metric.enabled}
-                  disabled={saving}
-                  onChange={(e) =>
-                    updateDeviceMetric(
-                      device.id,
-                      metric.id,
-                      'enabled',
-                      e.target.checked
-                    )
-                  }
-                />
-              </label>
-
-              <button
-                type="button"
-                className="delete-btn square"
-                disabled={saving}
-                onClick={() => removeDeviceMetric(device.id, metric.id)}
-                title="Remove Metric"
-              >
-                <Trash2 size={15} />
-              </button>
-            </div>
-          ))}
-        </div>
-
-        <div className="metric-config-actions">
-          <button
-            type="button"
-            className="ghost-button"
-            disabled={saving}
-            onClick={() => addDeviceMetric(device.id)}
-          >
-            <Plus size={15} />
-            Add Metric
-          </button>
-
-          <button
-            type="button"
-            className="ghost-button"
-            disabled={saving}
-            onClick={() => resetDeviceMetrics(device.id)}
-          >
-            Reset Default
-          </button>
-
-          {hasUnsavedChanges && (
-            <button
-              type="button"
-              className="ghost-button"
-              disabled={saving}
-              onClick={() => cancelDeviceMetricChanges(device.id)}
-            >
-              Cancel Changes
-            </button>
-          )}
-
-          <button
-            type="button"
-            className="save-btn metric-save-btn"
-            disabled={saving || !hasUnsavedChanges}
-            onClick={() => handleSaveDeviceMetrics(device.id)}
-          >
-            <Save size={15} />
-            Save Display
-          </button>
-        </div>
-      </div>
-    )
-  }
-
   function renderAlarmRules(device) {
     const rules = getDeviceAlarmRules(device.id)
     const draft = getRuleDraft(device.id)
@@ -1069,8 +615,11 @@ function Devices() {
                           }))
                         }
                       >
-                        <option value="temperature">Temperature</option>
-                        <option value="humidity">Humidity</option>
+                        {getAlarmMetricOptions(device.id).map((metric) => (
+                          <option key={metric.value} value={metric.value}>
+                            {metric.label}
+                          </option>
+                        ))}
                       </select>
 
                       <select
@@ -1224,7 +773,7 @@ function Devices() {
           </div>
         )}
 
-        {renderMetricDisplayConfig(device)}
+        <MetricConfigPanel deviceId={device.id} />
 
         {renderAlarmRules(device)}
 
@@ -1319,6 +868,10 @@ function Devices() {
                     <td>
                       <strong>{device.name || device.device_code}</strong>
                       <span>{device.device_code}</span>
+                      <span className="device-model-badge">
+                        {getDeviceModelLabel(device)} ·{' '}
+                        {getDeviceModelMeta(device)}
+                      </span>
                     </td>
 
                     <td>
@@ -1329,15 +882,18 @@ function Devices() {
 
                     <td>
                       <div className="table-metric-stack">
-                        {getDeviceMetricConfig(device.id)
-                          .filter((metric) => metric.enabled)
-                          .slice(0, 3)
-                          .map((metric) => (
-                            <span key={metric.id}>
-                              <b>{metric.displayName}</b>{' '}
-                              {getDeviceMetricValue(device, metric)}
-                            </span>
-                          ))}
+                        <span>
+                          <b>Temperature</b>{' '}
+                          {getMetricValue(device.temperature, '°C')}
+                        </span>
+
+                        <span>
+                          <b>Humidity</b> {getMetricValue(device.humidity, '%')}
+                        </span>
+
+                        <span>
+                          <b>Signal</b> {getMetricValue(device.rssi, ' dBm')}
+                        </span>
                       </div>
                     </td>
                     <td>{getLastSeen(device)}</td>
@@ -1512,6 +1068,25 @@ function Devices() {
                     </label>
 
                     <label>
+                      Device Model
+                      <select
+                        value={createForm.modelId}
+                        onChange={(e) =>
+                          setCreateForm((prev) => ({
+                            ...prev,
+                            modelId: Number(e.target.value),
+                          }))
+                        }
+                      >
+                        {deviceModels.map((model) => (
+                          <option key={model.id} value={model.id}>
+                            {model.model_name} ({model.metric_count} Metrics)
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+
+                    <label>
                       Device Code
                       <div className="copy-input">
                         <input value={createForm.deviceCode} disabled />
@@ -1592,6 +1167,14 @@ function Devices() {
                     </div>
 
                     <div className="confirm-row">
+                      <span>Device Model</span>
+                      <strong>
+                        {getSelectedCreateModel().model_name} ·{' '}
+                        {getSelectedCreateModel().metric_count} Metrics
+                      </strong>
+                    </div>
+
+                    <div className="confirm-row">
                       <span>Device Code</span>
                       <strong>{createForm.deviceCode}</strong>
                     </div>
@@ -1640,6 +1223,16 @@ function Devices() {
                         </button>
                       </div>
                     </label>
+
+                    {createdDevice.modelName && (
+                      <label>
+                        Device Model
+                        <input
+                          value={`${createdDevice.modelName} (${createdDevice.metricCount} Metrics)`}
+                          disabled
+                        />
+                      </label>
+                    )}
 
                     {createdDevice.latitude != null &&
                       createdDevice.longitude != null && (

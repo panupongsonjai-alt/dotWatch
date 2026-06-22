@@ -1,9 +1,9 @@
-import crypto from "crypto";
-import bcrypt from "bcryptjs";
-import { pool } from "../db/pool.js";
+import crypto from 'crypto'
+import bcrypt from 'bcryptjs'
+import { pool } from '../db/pool.js'
 
 export async function listDevices(req, res) {
-  const user = req.dbUser;
+  const user = req.dbUser
 
   const result = await pool.query(
     `
@@ -18,11 +18,17 @@ export async function listDevices(req, res) {
       d.latitude,
       d.longitude,
       d.map_url,
+      d.model_id,
+      dm.model_key,
+      dm.model_name,
+      dm.metric_count,
       lr.temperature,
       lr.humidity,
       lr.rssi,
       lr.time AS latest_time
     FROM devices d
+    LEFT JOIN device_models dm
+      ON dm.id = d.model_id
     LEFT JOIN LATERAL (
       SELECT time, temperature, humidity, rssi
       FROM sensor_readings
@@ -33,96 +39,159 @@ export async function listDevices(req, res) {
     WHERE d.user_id = $1
     ORDER BY d.created_at DESC
     `,
-    [user.id],
-  );
+    [user.id]
+  )
 
-  res.json(result.rows);
+  res.json(result.rows)
 }
 
 export async function createDevice(req, res) {
-  const user = req.dbUser;
-  const name = req.body.name || "New Device";
+  const user = req.dbUser
+
+  const name = req.body.name || 'New Device'
+
+  const modelId = Number(req.body.modelId) || 1
 
   const deviceCode =
     req.body.deviceCode ||
-    `DW-${crypto.randomInt(1, 999999).toString().padStart(6, "0")}`;
+    `DW-${crypto.randomInt(1, 999999).toString().padStart(6, '0')}`
 
   const deviceSecret =
-    req.body.deviceSecret || crypto.randomBytes(18).toString("hex");
+    req.body.deviceSecret || crypto.randomBytes(18).toString('hex')
 
-  const secretHash = await bcrypt.hash(deviceSecret, 10);
+  const secretHash = await bcrypt.hash(deviceSecret, 10)
 
-  const result = await pool.query(
-    `
-    INSERT INTO devices (
-      user_id,
-      device_code,
-      name,
-      secret_hash
+  const client = await pool.connect()
+
+  try {
+    await client.query('BEGIN')
+
+    const deviceResult = await client.query(
+      `
+        INSERT INTO devices (
+          user_id,
+          device_code,
+          name,
+          secret_hash,
+          model_id
+        )
+        VALUES ($1, $2, $3, $4, $5)
+        RETURNING
+          id,
+          device_code,
+          name,
+          model_id,
+          group_name,
+          latitude,
+          longitude,
+          map_url,
+          created_at
+        `,
+      [user.id, deviceCode, name, secretHash, modelId]
     )
-    VALUES ($1, $2, $3, $4)
-    RETURNING id, device_code, name, group_name, latitude, longitude, map_url, created_at
-    `,
-    [user.id, deviceCode, name, secretHash],
-  );
 
-  res.status(201).json({
-    ...result.rows[0],
-    deviceSecret,
-  });
+    const device = deviceResult.rows[0]
+
+    await client.query(
+      `
+      INSERT INTO device_metrics (
+        device_id,
+        metric_key,
+        source_key,
+        metric_name,
+        metric_type,
+        unit,
+        icon,
+        visible,
+        sort_order
+      )
+      SELECT
+        $1,
+        metric_key,
+        metric_key,
+        default_name,
+        default_type,
+        default_unit,
+        default_icon,
+        TRUE,
+        sort_order
+      FROM device_model_metrics
+      WHERE model_id = $2
+      `,
+      [device.id, modelId]
+    )
+
+    await client.query('COMMIT')
+
+    res.status(201).json({
+      ...device,
+      deviceSecret,
+    })
+  } catch (error) {
+    await client.query('ROLLBACK')
+    throw error
+  } finally {
+    client.release()
+  }
 }
 
 export async function getDevice(req, res) {
-  const user = req.dbUser;
-  const { id } = req.params;
+  const user = req.dbUser
+  const { id } = req.params
 
   const result = await pool.query(
     `
     SELECT
-      d.id,
-      d.device_code,
-      d.name,
-      d.group_name,
-      d.status,
-      d.last_seen_at,
-      d.last_ingest_at,
-      d.firmware_version,
-      d.latitude,
-      d.longitude,
-      d.map_url,
-      lr.temperature,
-      lr.humidity,
-      lr.rssi,
-      lr.time AS latest_time
-    FROM devices d
-    LEFT JOIN LATERAL (
-      SELECT time, temperature, humidity, rssi
-      FROM sensor_readings
-      WHERE device_id = d.id
-      ORDER BY time DESC
-      LIMIT 1
-    ) lr ON true
-    WHERE d.id = $1
-      AND d.user_id = $2
-    LIMIT 1
+  d.id,
+  d.device_code,
+  d.name,
+  d.group_name,
+  d.status,
+  d.last_seen_at,
+  d.last_ingest_at,
+  d.firmware_version,
+  d.latitude,
+  d.longitude,
+  d.map_url,
+  d.model_id,
+  dm.model_key,
+  dm.model_name,
+  dm.metric_count,
+  lr.temperature,
+  lr.humidity,
+  lr.rssi,
+  lr.time AS latest_time
+FROM devices d
+LEFT JOIN device_models dm
+  ON dm.id = d.model_id
+LEFT JOIN LATERAL (
+  SELECT time, temperature, humidity, rssi
+  FROM sensor_readings
+  WHERE device_id = d.id
+  ORDER BY time DESC
+  LIMIT 1
+) lr ON true
+WHERE d.id = $1
+  AND d.user_id = $2
+LIMIT 1
     `,
-    [id, user.id],
-  );
+    [id, user.id]
+  )
 
   if (!result.rows.length) {
     return res.status(404).json({
-      message: "Device not found",
-    });
+      message: 'Device not found',
+    })
   }
 
-  res.json(result.rows[0]);
+  res.json(result.rows[0])
 }
 
 export async function updateDevice(req, res) {
-  const user = req.dbUser;
-  const { id } = req.params;
+  const user = req.dbUser
+  const { id } = req.params
 
-  const { name, groupName, latitude, longitude, mapUrl } = req.body;
+  const { name, groupName, latitude, longitude, mapUrl } = req.body
 
   const result = await pool.query(
     `
@@ -156,24 +225,24 @@ export async function updateDevice(req, res) {
       mapUrl ?? null,
       id,
       user.id,
-    ],
-  );
+    ]
+  )
 
   if (!result.rows.length) {
     return res.status(404).json({
-      message: "Device not found",
-    });
+      message: 'Device not found',
+    })
   }
 
-  res.json(result.rows[0]);
+  res.json(result.rows[0])
 }
 
 export async function resetDeviceSecret(req, res) {
-  const user = req.dbUser;
-  const { id } = req.params;
+  const user = req.dbUser
+  const { id } = req.params
 
-  const deviceSecret = crypto.randomBytes(18).toString("hex");
-  const secretHash = await bcrypt.hash(deviceSecret, 10);
+  const deviceSecret = crypto.randomBytes(18).toString('hex')
+  const secretHash = await bcrypt.hash(deviceSecret, 10)
 
   const result = await pool.query(
     `
@@ -183,24 +252,24 @@ export async function resetDeviceSecret(req, res) {
       AND user_id = $3
     RETURNING id, device_code, name
     `,
-    [secretHash, id, user.id],
-  );
+    [secretHash, id, user.id]
+  )
 
   if (!result.rows.length) {
     return res.status(404).json({
-      message: "Device not found",
-    });
+      message: 'Device not found',
+    })
   }
 
   res.json({
     ...result.rows[0],
     deviceSecret,
-  });
+  })
 }
 
 export async function deleteDevice(req, res) {
-  const user = req.dbUser;
-  const { id } = req.params;
+  const user = req.dbUser
+  const { id } = req.params
 
   const result = await pool.query(
     `
@@ -209,23 +278,23 @@ export async function deleteDevice(req, res) {
       AND user_id = $2
     RETURNING id
     `,
-    [id, user.id],
-  );
+    [id, user.id]
+  )
 
   if (!result.rows.length) {
     return res.status(404).json({
-      message: "Device not found",
-    });
+      message: 'Device not found',
+    })
   }
 
   res.json({
     ok: true,
-  });
+  })
 }
 
 export async function getHistory(req, res) {
-  const user = req.dbUser;
-  const { id } = req.params;
+  const user = req.dbUser
+  const { id } = req.params
 
   const deviceCheck = await pool.query(
     `
@@ -235,27 +304,27 @@ export async function getHistory(req, res) {
       AND user_id = $2
     LIMIT 1
     `,
-    [id, user.id],
-  );
+    [id, user.id]
+  )
 
   if (!deviceCheck.rows.length) {
     return res.status(404).json({
-      message: "Device not found",
-    });
+      message: 'Device not found',
+    })
   }
 
-  const now = new Date();
+  const now = new Date()
 
   const fromDate = req.query.from
     ? new Date(req.query.from)
-    : new Date(now.getTime() - 24 * 60 * 60 * 1000);
+    : new Date(now.getTime() - 24 * 60 * 60 * 1000)
 
-  const toDate = req.query.to ? new Date(req.query.to) : now;
+  const toDate = req.query.to ? new Date(req.query.to) : now
 
   const diffDays =
-    (toDate.getTime() - fromDate.getTime()) / (1000 * 60 * 60 * 24);
+    (toDate.getTime() - fromDate.getTime()) / (1000 * 60 * 60 * 24)
 
-  let query;
+  let query
 
   if (diffDays <= 1) {
     query = `
@@ -272,7 +341,7 @@ export async function getHistory(req, res) {
         AND time BETWEEN $2 AND $3
       ORDER BY time ASC
       LIMIT 288
-    `;
+    `
   } else if (diffDays <= 30) {
     query = `
       SELECT
@@ -288,7 +357,7 @@ export async function getHistory(req, res) {
         AND bucket BETWEEN $2 AND $3
       ORDER BY bucket ASC
       LIMIT 500
-    `;
+    `
   } else {
     query = `
       SELECT
@@ -304,10 +373,10 @@ export async function getHistory(req, res) {
         AND bucket BETWEEN $2 AND $3
       ORDER BY bucket ASC
       LIMIT 500
-    `;
+    `
   }
 
-  const result = await pool.query(query, [id, fromDate, toDate]);
+  const result = await pool.query(query, [id, fromDate, toDate])
 
-  res.json(result.rows);
+  res.json(result.rows)
 }

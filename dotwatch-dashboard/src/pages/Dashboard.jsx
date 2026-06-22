@@ -2,20 +2,24 @@ import { useEffect, useState } from 'react'
 import { auth } from '../services/firebase'
 import AlarmPanel from '../components/AlarmPanel.jsx'
 import { getDevices, getAlarms } from '../services/api'
+import { getDeviceMetrics } from '../services/metricDisplayApi'
 import { connectRealtime, disconnectRealtime } from '../services/realtime'
 import { useAlarm } from '../context/AlarmContext'
 import DeviceMap from '../components/DeviceMap'
 import {
-  getDeviceMetricConfig,
-  getDeviceMetricValue,
-  readMetricConfigs,
+  DEFAULT_METRICS,
+  formatMetricValue,
+  getMetricValue,
+  getVisibleMetrics,
+  normalizeMetrics,
 } from '../utils/metricDisplayConfig'
+import { MetricIcon } from '../utils/metricIcons.jsx'
 
 function Dashboard({ onOpenDevice }) {
   const [devices, setDevices] = useState([])
+  const [metricConfigs, setMetricConfigs] = useState({})
   const [loading, setLoading] = useState(true)
   const [alarmCount, setAlarmCount] = useState(0)
-  const [metricConfigs, setMetricConfigs] = useState(() => readMetricConfigs())
 
   const [dashboardDisplay, setDashboardDisplay] = useState({
     showDeviceOverview: true,
@@ -24,14 +28,37 @@ function Dashboard({ onOpenDevice }) {
 
   const { addAlarm } = useAlarm()
 
+  async function loadDeviceMetrics(devicesList = []) {
+    const entries = await Promise.all(
+      devicesList.map(async (device) => {
+        try {
+          const data = await getDeviceMetrics(device.id)
+          const metrics = normalizeMetrics(data?.metrics || data || [])
+
+          return [device.id, metrics.length > 0 ? metrics : DEFAULT_METRICS]
+        } catch (error) {
+          console.error(`Load metrics error for device ${device.id}:`, error)
+          return [device.id, DEFAULT_METRICS]
+        }
+      })
+    )
+
+    setMetricConfigs(Object.fromEntries(entries))
+  }
+
   async function loadDevices() {
     try {
       setLoading(true)
+
       const data = await getDevices()
-      setDevices(Array.isArray(data) ? data : [])
+      const nextDevices = Array.isArray(data) ? data : []
+
+      setDevices(nextDevices)
+      await loadDeviceMetrics(nextDevices)
     } catch (error) {
       console.error('Load devices error:', error)
       setDevices([])
+      setMetricConfigs({})
     } finally {
       setLoading(false)
     }
@@ -58,24 +85,18 @@ function Dashboard({ onOpenDevice }) {
     })
   }
 
-  function loadMetricDisplayConfig() {
-    setMetricConfigs(readMetricConfigs())
+  function getDeviceVisibleMetrics(device) {
+    const metrics = metricConfigs[device.id] || DEFAULT_METRICS
+    return getVisibleMetrics(metrics).slice(0, 3)
   }
 
-  function getVisibleMetrics(device) {
-    return getDeviceMetricConfig(device.id, metricConfigs)
-      .filter((metric) => metric.enabled)
-      .slice(0, 3)
+  function getDisplayValue(device, metric) {
+    return formatMetricValue(getMetricValue(device, metric), metric.unit)
   }
 
   function getDeviceHealth(device) {
-    if (device.status === 'offline') {
-      return { className: 'critical' }
-    }
-
-    if (device.status === 'warning') {
-      return { className: 'warning' }
-    }
+    if (device.status === 'offline') return { className: 'critical' }
+    if (device.status === 'warning') return { className: 'warning' }
 
     if (device.rssi != null && Number(device.rssi) < -85) {
       return { className: 'warning' }
@@ -90,10 +111,12 @@ function Dashboard({ onOpenDevice }) {
     loadAlarms()
 
     window.addEventListener('dashboardSettingsChanged', loadDisplaySettings)
-    window.addEventListener(
-      'metricDisplayConfigChanged',
-      loadMetricDisplayConfig
-    )
+    window.addEventListener('dotwatchMetricConfigChanged', loadDevices)
+
+    const timer = setInterval(() => {
+      loadDevices()
+      loadAlarms()
+    }, 10000)
 
     const user = auth.currentUser
 
@@ -117,22 +140,19 @@ function Dashboard({ onOpenDevice }) {
     }
 
     return () => {
+      clearInterval(timer)
       disconnectRealtime()
       window.removeEventListener(
         'dashboardSettingsChanged',
         loadDisplaySettings
       )
-      window.removeEventListener(
-        'metricDisplayConfigChanged',
-        loadMetricDisplayConfig
-      )
+      window.removeEventListener('dotwatchMetricConfigChanged', loadDevices)
     }
   }, [addAlarm])
 
   const onlineCount = devices.filter(
     (device) => device.status === 'online'
   ).length
-
   const offlineCount = devices.length - onlineCount
 
   const healthSummary = devices.reduce(
@@ -243,10 +263,20 @@ function Dashboard({ onOpenDevice }) {
                     {device.name || device.device_code || 'Unnamed Device'}
                   </div>
 
+                  {device.model_name && (
+                    <div className="device-model-badge">
+                      {device.model_name}
+                    </div>
+                  )}
+
                   <div className="overview-values dynamic-overview-values">
-                    {getVisibleMetrics(device).map((metric) => (
-                      <span key={metric.id} title={metric.displayName}>
-                        {metric.icon} {getDeviceMetricValue(device, metric)}
+                    {getDeviceVisibleMetrics(device).map((metric) => (
+                      <span
+                        key={metric.id || metric.metric_key}
+                        title={metric.metric_name}
+                      >
+                        <MetricIcon name={metric.icon} size={14} />
+                        {metric.metric_name}: {getDisplayValue(device, metric)}
                       </span>
                     ))}
                   </div>

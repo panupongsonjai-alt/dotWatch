@@ -6,15 +6,12 @@ import {
   deleteAlarmRule,
   getDevices,
 } from '../services/api'
-import {
-  getDeviceMetricConfig,
-  getMetricMeta,
-  readMetricConfigs,
-} from '../utils/metricDisplayConfig'
+import { getDeviceMetrics } from '../services/metricDisplayApi'
+import { formatMetricValue } from '../utils/metricDisplayConfig'
 
 const defaultForm = {
   device_id: '',
-  metric: 'temperature',
+  metric: '',
   operator: '>',
   threshold: 35,
   severity: 'critical',
@@ -32,6 +29,14 @@ function getDeviceId(rule) {
   return rule.device_id ?? rule.deviceId ?? rule.device?.id ?? ''
 }
 
+function normalizeMetricList(data) {
+  const metrics = Array.isArray(data) ? data : data?.metrics || []
+
+  return metrics
+    .filter((metric) => metric && metric.visible !== false)
+    .sort((a, b) => Number(a.sort_order || 0) - Number(b.sort_order || 0))
+}
+
 function StatCard({ label, value, tone = '' }) {
   return (
     <article className={`unified-stat-card ${tone}`}>
@@ -44,7 +49,7 @@ function StatCard({ label, value, tone = '' }) {
 function AlarmRules() {
   const [rules, setRules] = useState([])
   const [devices, setDevices] = useState([])
-  const [metricConfigs, setMetricConfigs] = useState(() => readMetricConfigs())
+  const [deviceMetrics, setDeviceMetrics] = useState({})
   const [form, setForm] = useState(defaultForm)
   const [filter, setFilter] = useState('all')
   const [query, setQuery] = useState('')
@@ -54,17 +59,75 @@ function AlarmRules() {
   const [error, setError] = useState('')
   const [message, setMessage] = useState('')
 
+  async function fetchMetricsForDevice(deviceId) {
+    if (!deviceId) return []
+
+    const data = await getDeviceMetrics(deviceId)
+    return normalizeMetricList(data)
+  }
+
+  async function loadMetricsForDevice(deviceId) {
+    if (!deviceId) return []
+
+    if (deviceMetrics[deviceId]) {
+      return deviceMetrics[deviceId]
+    }
+
+    try {
+      const metrics = await fetchMetricsForDevice(deviceId)
+
+      setDeviceMetrics((prev) => ({
+        ...prev,
+        [deviceId]: metrics,
+      }))
+
+      return metrics
+    } catch (err) {
+      console.error('Load device metrics error:', err)
+      return []
+    }
+  }
+
   async function loadData() {
     try {
       setError('')
+      setLoading(true)
 
       const [rulesData, devicesData] = await Promise.all([
         getAlarmRules(),
         getDevices(),
       ])
 
-      setRules(Array.isArray(rulesData) ? rulesData : [])
-      setDevices(Array.isArray(devicesData) ? devicesData : [])
+      const nextRules = Array.isArray(rulesData) ? rulesData : []
+      const nextDevices = Array.isArray(devicesData) ? devicesData : []
+
+      setRules(nextRules)
+      setDevices(nextDevices)
+
+      const deviceIds = [
+        ...new Set(
+          [
+            ...nextDevices.map((device) => device.id),
+            ...nextRules.map((rule) => getDeviceId(rule)),
+          ]
+            .filter(Boolean)
+            .map(String)
+        ),
+      ]
+
+      const entries = await Promise.all(
+        deviceIds.map(async (deviceId) => {
+          try {
+            const metrics = await fetchMetricsForDevice(deviceId)
+            return [deviceId, metrics]
+          } catch (err) {
+            console.error(`Load metrics error for device ${deviceId}:`, err)
+            return [deviceId, []]
+          }
+        })
+      )
+
+      setDeviceMetrics(Object.fromEntries(entries))
     } catch (err) {
       console.error(err)
       setError('โหลดข้อมูล Alarm Rules ไม่สำเร็จ')
@@ -76,39 +139,34 @@ function AlarmRules() {
   useEffect(() => {
     loadData()
 
-    function handleMetricConfigChanged() {
-      setMetricConfigs(readMetricConfigs())
-    }
-
-    window.addEventListener(
-      'metricDisplayConfigChanged',
-      handleMetricConfigChanged
-    )
+    const timer = setInterval(loadData, 10000)
 
     return () => {
-      window.removeEventListener(
-        'metricDisplayConfigChanged',
-        handleMetricConfigChanged
-      )
+      clearInterval(timer)
     }
   }, [])
 
-  function updateForm(field, value) {
-    setForm((prev) => {
-      if (field === 'device_id') {
-        const options = getMetricOptions(value)
-        return {
-          ...prev,
-          device_id: value,
-          metric: options[0]?.sourceKey || 'temperature',
-        }
-      }
+  async function handleDeviceChange(deviceId) {
+    setForm((prev) => ({
+      ...prev,
+      device_id: deviceId,
+      metric: '',
+    }))
 
-      return {
-        ...prev,
-        [field]: value,
-      }
-    })
+    const metrics = await loadMetricsForDevice(deviceId)
+
+    setForm((prev) => ({
+      ...prev,
+      device_id: deviceId,
+      metric: metrics[0]?.metric_key || '',
+    }))
+  }
+
+  function updateForm(field, value) {
+    setForm((prev) => ({
+      ...prev,
+      [field]: value,
+    }))
   }
 
   function getDeviceName(id) {
@@ -117,17 +175,19 @@ function AlarmRules() {
   }
 
   function getMetricOptions(deviceId) {
-    return getDeviceMetricConfig(deviceId, metricConfigs).filter(
-      (metric) => metric.enabled && metric.sourceKey
+    if (!deviceId) return []
+    return deviceMetrics[String(deviceId)] || deviceMetrics[deviceId] || []
+  }
+
+  function getMetricMeta(deviceId, metricKey) {
+    const metric = getMetricOptions(deviceId).find(
+      (item) => item.metric_key === metricKey
     )
-  }
 
-  function getMetricLabel(deviceId, metricKey) {
-    return getMetricMeta(deviceId, metricKey, metricConfigs).displayName
-  }
-
-  function getUnit(deviceId, metricKey) {
-    return getMetricMeta(deviceId, metricKey, metricConfigs).unit
+    return {
+      label: metric?.metric_name || metricKey || 'Unknown Metric',
+      unit: metric?.unit || '',
+    }
   }
 
   async function handleCreate(event) {
@@ -135,6 +195,11 @@ function AlarmRules() {
 
     if (!form.device_id) {
       setError('กรุณาเลือก Device ก่อนสร้าง Rule')
+      return
+    }
+
+    if (!form.metric) {
+      setError('กรุณาเลือก Metric ก่อนสร้าง Rule')
       return
     }
 
@@ -249,9 +314,12 @@ function AlarmRules() {
       .filter((rule) => {
         if (!search) return true
 
-        const deviceName = getDeviceName(getDeviceId(rule)).toLowerCase()
+        const deviceId = getDeviceId(rule)
+        const deviceName = getDeviceName(deviceId).toLowerCase()
+        const metricMeta = getMetricMeta(deviceId, rule.metric)
         const haystack = [
           deviceName,
+          metricMeta.label,
           rule.metric,
           rule.operator,
           rule.threshold,
@@ -263,7 +331,7 @@ function AlarmRules() {
 
         return haystack.includes(search)
       })
-  }, [rules, filter, query, devices])
+  }, [rules, filter, query, devices, deviceMetrics])
 
   return (
     <div className="unified-page alarm-rules-page">
@@ -300,7 +368,7 @@ function AlarmRules() {
         <div className="unified-card-header">
           <div>
             <h2>Create Rule</h2>
-            <p>ตัวอย่างเช่น Temperature &gt; 35°C หรือ Humidity &gt; 80%</p>
+            <p>เลือก Metric จาก Device Model และค่าที่ตั้งไว้ในหน้า Device</p>
           </div>
         </div>
 
@@ -309,12 +377,13 @@ function AlarmRules() {
             Device
             <select
               value={form.device_id}
-              onChange={(event) => updateForm('device_id', event.target.value)}
+              onChange={(event) => handleDeviceChange(event.target.value)}
             >
               <option value="">เลือก Device</option>
               {devices.map((device) => (
                 <option key={device.id} value={device.id}>
                   {device.name || device.device_code || `Device #${device.id}`}
+                  {device.model_name ? ` — ${device.model_name}` : ''}
                 </option>
               ))}
             </select>
@@ -324,12 +393,22 @@ function AlarmRules() {
             Metric
             <select
               value={form.metric}
-              disabled={!form.device_id}
+              disabled={
+                !form.device_id || getMetricOptions(form.device_id).length === 0
+              }
               onChange={(event) => updateForm('metric', event.target.value)}
             >
+              {!form.device_id && <option value="">เลือก Device ก่อน</option>}
+              {form.device_id &&
+                getMetricOptions(form.device_id).length === 0 && (
+                  <option value="">ไม่พบ Metric</option>
+                )}
               {getMetricOptions(form.device_id).map((metric) => (
-                <option key={metric.id} value={metric.sourceKey}>
-                  {metric.displayName}
+                <option
+                  key={metric.id || metric.metric_key}
+                  value={metric.metric_key}
+                >
+                  {metric.metric_name}
                   {metric.unit ? ` (${metric.unit})` : ''}
                 </option>
               ))}
@@ -432,21 +511,19 @@ function AlarmRules() {
                   const severity = rule.severity || 'warning'
                   const isActive = Boolean(rule.is_active)
                   const deviceId = getDeviceId(rule)
-                  const metricLabel = getMetricLabel(deviceId, rule.metric)
-                  const unit = getUnit(deviceId, rule.metric)
+                  const metricMeta = getMetricMeta(deviceId, rule.metric)
 
                   return (
                     <tr key={rule.id}>
                       <td>
-                        <strong>{getDeviceName(getDeviceId(rule))}</strong>
+                        <strong>{getDeviceName(deviceId)}</strong>
                         <span>Rule #{rule.id}</span>
                       </td>
-                      <td>{metricLabel}</td>
+                      <td>{metricMeta.label}</td>
                       <td>
                         <strong>
-                          {metricLabel} {rule.operator}{' '}
-                          {Number(rule.threshold).toFixed(1)}
-                          {unit}
+                          {metricMeta.label} {rule.operator}{' '}
+                          {formatMetricValue(rule.threshold, metricMeta.unit)}
                         </strong>
                       </td>
                       <td>

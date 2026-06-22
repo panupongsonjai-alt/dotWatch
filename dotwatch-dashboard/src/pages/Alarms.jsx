@@ -1,10 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { acknowledgeAlarm, getAlarms } from '../services/api'
-import {
-  formatMetricValue,
-  getMetricMeta,
-  readMetricConfigs,
-} from '../utils/metricDisplayConfig'
+import { formatMetricValue } from '../utils/metricDisplayConfig'
 
 const STATUS_FILTERS = [
   { label: 'All Alarms', value: 'all' },
@@ -38,7 +34,6 @@ function StatCard({ label, value, tone = '' }) {
 
 function Alarms() {
   const [alarms, setAlarms] = useState([])
-  const [metricConfigs, setMetricConfigs] = useState(() => readMetricConfigs())
   const [statusFilter, setStatusFilter] = useState('all')
   const [severityFilter, setSeverityFilter] = useState('all')
   const [query, setQuery] = useState('')
@@ -62,22 +57,10 @@ function Alarms() {
   useEffect(() => {
     loadAlarms()
 
-    function handleMetricConfigChanged() {
-      setMetricConfigs(readMetricConfigs())
-    }
-
-    window.addEventListener(
-      'metricDisplayConfigChanged',
-      handleMetricConfigChanged
-    )
-
     const timer = setInterval(loadAlarms, 10000)
+
     return () => {
       clearInterval(timer)
-      window.removeEventListener(
-        'metricDisplayConfigChanged',
-        handleMetricConfigChanged
-      )
     }
   }, [])
 
@@ -95,7 +78,10 @@ function Alarms() {
   }
 
   function getAlarmMetricMeta(alarm) {
-    return getMetricMeta(alarm.device_id, alarm.metric, metricConfigs)
+    return {
+      displayName: alarm.metric || 'Unknown Metric',
+      unit: '',
+    }
   }
 
   const stats = useMemo(() => {

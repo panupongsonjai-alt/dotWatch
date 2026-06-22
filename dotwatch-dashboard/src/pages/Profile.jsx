@@ -10,6 +10,7 @@ import {
   getProfileNotifications,
   saveProfileNotifications,
 } from '../utils/profileStorage'
+import { updateProfile } from 'firebase/auth'
 
 function Profile() {
   const user = auth.currentUser
@@ -28,7 +29,10 @@ function Profile() {
   const [sendingReset, setSendingReset] = useState(false)
   const [sendingVerify, setSendingVerify] = useState(false)
 
-  const displayName = user?.displayName || 'dotWatch User'
+  const [displayName, setDisplayName] = useState(
+    user?.displayName || 'dotWatch User'
+  )
+  const [savingProfile, setSavingProfile] = useState(false)
   const email = user?.email || '-'
   const uid = user?.uid || '-'
   const providerId = user?.providerData?.[0]?.providerId || 'password'
@@ -113,6 +117,31 @@ function Profile() {
     }
   }
 
+  async function handleSaveProfile() {
+    if (!user) return
+
+    try {
+      setSavingProfile(true)
+      setMessage('')
+      setError('')
+
+      await updateProfile(user, {
+        displayName,
+      })
+
+      setMessage('บันทึกข้อมูลโปรไฟล์เรียบร้อย')
+
+      setActivities(
+        addProfileActivity(`เปลี่ยน Display Name เป็น "${displayName}"`)
+      )
+    } catch (err) {
+      console.error(err)
+      setError('ไม่สามารถบันทึกข้อมูลได้')
+    } finally {
+      setSavingProfile(false)
+    }
+  }
+
   function handleClearActivities() {
     setActivities(clearProfileActivities())
   }
@@ -141,7 +170,11 @@ function Profile() {
             <div className="profile-info-grid compact">
               <label>
                 Display Name
-                <input value={displayName} disabled />
+                <input
+                  value={displayName}
+                  onChange={(e) => setDisplayName(e.target.value)}
+                  placeholder="Display Name"
+                />
               </label>
 
               <label>
@@ -183,22 +216,20 @@ function Profile() {
               </label>
 
               <label>
-                Language
-                <input
-                  value={language === 'th' ? 'Thai' : 'English'}
-                  disabled
-                />
-              </label>
-
-              <label>
-                Account Type
-                <input value="Standard" disabled />
-              </label>
-
-              <label>
                 Device Access
                 <input value="All Devices" disabled />
               </label>
+            </div>
+
+            <div className="profile-save-row">
+              <button
+                type="button"
+                className="primary-button"
+                onClick={handleSaveProfile}
+                disabled={savingProfile}
+              >
+                {savingProfile ? 'Saving...' : 'Save Profile'}
+              </button>
             </div>
           </section>
 

@@ -13,6 +13,9 @@ import { markOfflineDevices } from './services/deviceStatus.service.js'
 import { alarmsRouter } from './routes/alarms.routes.js'
 import { alarmRulesRouter } from './routes/alarmRules.routes.js'
 import { demoRouter } from './routes/demo.routes.js'
+import deviceMetricsRoutes from './routes/deviceMetricsRoutes.js'
+import deviceModelsRoutes from './routes/deviceModelsRoutes.js'
+import { pool } from './db/pool.js'
 
 const app = express()
 const server = http.createServer(app)
@@ -56,6 +59,25 @@ const ingestLimiter = rateLimit({
   limit: 50_000,
 })
 
+app.get('/debug/tables', async (req, res) => {
+  const result = await pool.query(`
+    SELECT table_schema, table_name
+    FROM information_schema.tables
+    WHERE table_name IN ('device_models', 'device_model_metrics')
+    ORDER BY table_schema, table_name
+  `)
+
+  res.json(result.rows)
+})
+
+app.get('/debug/db', async (req, res) => {
+  const result = await pool.query(`
+    SELECT current_database(), current_user, inet_server_port()
+  `)
+
+  res.json(result.rows[0])
+})
+
 app.use(helmet())
 app.use(cors({ origin: env.corsOrigin }))
 app.use(express.json({ limit: '128kb' }))
@@ -69,6 +91,8 @@ app.use('/api/demo', apiLimiter, demoRouter)
 app.use('/api/ingest', ingestLimiter, ingestRouter)
 app.use('/api/alarms', apiLimiter, alarmsRouter)
 app.use('/api/alarm-rules', apiLimiter, alarmRulesRouter)
+app.use('/api', deviceMetricsRoutes)
+app.use('/api', deviceModelsRoutes)
 
 setInterval(async () => {
   try {
