@@ -364,69 +364,67 @@ function Profile() {
             </div>
           </section>
 
-          <div className="profile-three-grid">
-            <section className="profile-section app-card">
+          <section className="profile-section app-card">
+            <div className="profile-card-title">
+              <span className="profile-title-icon">🔔</span>
+              <h3>Notification Settings</h3>
+            </div>
+
+            <div className="profile-toggle-list">
+              {Object.entries({
+                emailAlerts: 'Email Alerts',
+                offlineAlerts: 'Device Offline Alerts',
+                criticalAlerts: 'Critical Alarm Alerts',
+                weeklyReport: 'Weekly Report',
+              }).map(([key, label]) => (
+                <label key={key}>
+                  <span>{label}</span>
+                  <input
+                    type="checkbox"
+                    checked={notifications[key]}
+                    onChange={() => handleNotificationChange(key)}
+                  />
+                </label>
+              ))}
+            </div>
+          </section>
+
+          <section className="profile-section app-card">
+            <div className="profile-section-header">
               <div className="profile-card-title">
-                <span className="profile-title-icon">🔔</span>
-                <h3>Notification Settings</h3>
+                <span className="profile-title-icon">🕘</span>
+                <h3>Recent Activity</h3>
               </div>
 
-              <div className="profile-toggle-list">
-                {Object.entries({
-                  emailAlerts: 'Email Alerts',
-                  offlineAlerts: 'Device Offline Alerts',
-                  criticalAlerts: 'Critical Alarm Alerts',
-                  weeklyReport: 'Weekly Report',
-                }).map(([key, label]) => (
-                  <label key={key}>
-                    <span>{label}</span>
-                    <input
-                      type="checkbox"
-                      checked={notifications[key]}
-                      onChange={() => handleNotificationChange(key)}
-                    />
-                  </label>
-                ))}
-              </div>
-            </section>
+              {activities.length > 0 && (
+                <button
+                  type="button"
+                  className="text-button"
+                  onClick={handleClearActivities}
+                >
+                  Clear
+                </button>
+              )}
+            </div>
 
-            <section className="profile-section app-card">
-              <div className="profile-section app-card-header">
-                <div className="profile-card-title">
-                  <span className="profile-title-icon">🕘</span>
-                  <h3>Recent Activity</h3>
-                </div>
-
-                {activities.length > 0 && (
-                  <button
-                    type="button"
-                    className="text-button"
-                    onClick={handleClearActivities}
-                  >
-                    Clear
-                  </button>
-                )}
-              </div>
-
-              <div className="activity-list">
-                {activities.length === 0 ? (
-                  <p className="profile-help-text">ยังไม่มีกิจกรรมล่าสุด</p>
-                ) : (
-                  activities.map((activity) => (
-                    <div className="activity-item" key={activity.id}>
-                      <span className="activity-dot" />
-                      <div>
-                        <strong>{activity.text}</strong>
-                        <small>
-                          {new Date(activity.time).toLocaleString('th-TH')}
-                        </small>
-                      </div>
+            <div className="activity-list">
+              {activities.length === 0 ? (
+                <p className="profile-help-text">ยังไม่มีกิจกรรมล่าสุด</p>
+              ) : (
+                activities.map((activity) => (
+                  <div className="activity-item" key={activity.id}>
+                    <span className="activity-dot" />
+                    <div>
+                      <strong>{activity.text}</strong>
+                      <small>
+                        {new Date(activity.time).toLocaleString('th-TH')}
+                      </small>
                     </div>
-                  ))
-                )}
-              </div>
-            </section>
-          </div>
+                  </div>
+                ))
+              )}
+            </div>
+          </section>
 
           <div className="profile-two-grid">
             <section className="profile-section app-card">

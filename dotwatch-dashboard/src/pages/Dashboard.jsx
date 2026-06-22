@@ -113,11 +113,6 @@ function Dashboard({ onOpenDevice }) {
     window.addEventListener('dashboardSettingsChanged', loadDisplaySettings)
     window.addEventListener('dotwatchMetricConfigChanged', loadDevices)
 
-    const timer = setInterval(() => {
-      loadDevices()
-      loadAlarms()
-    }, 10000)
-
     const user = auth.currentUser
 
     if (user) {
@@ -140,7 +135,6 @@ function Dashboard({ onOpenDevice }) {
     }
 
     return () => {
-      clearInterval(timer)
       disconnectRealtime()
       window.removeEventListener(
         'dashboardSettingsChanged',
@@ -175,20 +169,6 @@ function Dashboard({ onOpenDevice }) {
           <span className="page-eyebrow">Overview</span>
           <h2>Dashboard</h2>
           <p>ภาพรวมสถานะอุปกรณ์, Alarm และตำแหน่งล่าสุดของระบบ dotWatch</p>
-        </div>
-
-        <div className="app-page-actions">
-          <button
-            type="button"
-            className="ghost-button"
-            onClick={() => {
-              loadDevices()
-              loadAlarms()
-            }}
-            disabled={loading}
-          >
-            Refresh
-          </button>
         </div>
       </section>
 

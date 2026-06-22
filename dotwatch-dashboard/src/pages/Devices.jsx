@@ -851,10 +851,12 @@ function Devices() {
           <thead>
             <tr>
               <th>Device</th>
-              <th>Status</th>
+              <th>Model</th>
               <th>Metrics</th>
+              <th>Status</th>
               <th>Last Seen</th>
-              <th />
+              <th>Location</th>
+              <th>Actions</th>
             </tr>
           </thead>
 
@@ -866,11 +868,22 @@ function Devices() {
                 <React.Fragment key={device.id}>
                   <tr>
                     <td>
-                      <strong>{device.name || device.device_code}</strong>
-                      <span>{device.device_code}</span>
-                      <span className="device-model-badge">
-                        {getDeviceModelLabel(device)} ·{' '}
-                        {getDeviceModelMeta(device)}
+                      <div className="device-cell">
+                        <strong>{device.name || device.device_code}</strong>
+                        <small>{device.device_code}</small>
+                      </div>
+                    </td>
+
+                    <td>
+                      <div className="model-cell">
+                        <strong>{device.model_name || 'dotWatch 2CH'}</strong>
+                        <small>{device.model_key || '-'}</small>
+                      </div>
+                    </td>
+
+                    <td>
+                      <span className="metric-count-badge">
+                        {device.metric_count || 0} Metrics
                       </span>
                     </td>
 
@@ -880,42 +893,34 @@ function Devices() {
                       </span>
                     </td>
 
-                    <td>
-                      <div className="table-metric-stack">
-                        <span>
-                          <b>Temperature</b>{' '}
-                          {getMetricValue(device.temperature, '°C')}
-                        </span>
-
-                        <span>
-                          <b>Humidity</b> {getMetricValue(device.humidity, '%')}
-                        </span>
-
-                        <span>
-                          <b>Signal</b> {getMetricValue(device.rssi, ' dBm')}
-                        </span>
-                      </div>
-                    </td>
                     <td>{getLastSeen(device)}</td>
 
                     <td>
-                      <button
-                        type="button"
-                        className="ghost-button table-manage-btn"
-                        onClick={() =>
-                          setExpandedDeviceId(
-                            expandedDeviceId === device.id ? null : device.id
-                          )
-                        }
-                      >
-                        Manage
-                      </button>
+                      {device.latitude && device.longitude
+                        ? `${Number(device.latitude).toFixed(5)},
+       ${Number(device.longitude).toFixed(5)}`
+                        : '-'}
+                    </td>
+                    <td>
+                      <div className="table-actions">
+                        <button
+                          type="button"
+                          className="ghost-button table-manage-btn"
+                          onClick={() =>
+                            setExpandedDeviceId(
+                              expandedDeviceId === device.id ? null : device.id
+                            )
+                          }
+                        >
+                          Manage
+                        </button>
+                      </div>
                     </td>
                   </tr>
 
                   {expandedDeviceId === device.id && (
                     <tr className="device-table-expand-row">
-                      <td colSpan="5">{renderManagePanel(device)}</td>
+                      <td colSpan="7">{renderManagePanel(device)}</td>
                     </tr>
                   )}
                 </React.Fragment>
