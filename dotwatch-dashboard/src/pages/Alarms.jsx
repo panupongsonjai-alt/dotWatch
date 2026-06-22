@@ -1,5 +1,10 @@
 import { useEffect, useMemo, useState } from 'react'
 import { acknowledgeAlarm, getAlarms } from '../services/api'
+import {
+  formatMetricValue,
+  getMetricMeta,
+  readMetricConfigs,
+} from '../utils/metricDisplayConfig'
 
 const STATUS_FILTERS = [
   { label: 'All Alarms', value: 'all' },
@@ -22,27 +27,6 @@ function formatDateTime(value) {
   })
 }
 
-function formatValue(value) {
-  if (value == null || value === '') return '--'
-  const number = Number(value)
-  if (Number.isNaN(number)) return String(value)
-  return number.toFixed(1)
-}
-
-function getUnit(metric) {
-  if (metric === 'temperature') return '°C'
-  if (metric === 'humidity') return '%'
-  if (metric === 'rssi') return 'dBm'
-  return ''
-}
-
-function getMetricLabel(metric) {
-  if (metric === 'temperature') return 'Temperature'
-  if (metric === 'humidity') return 'Humidity'
-  if (metric === 'rssi') return 'RSSI'
-  return metric || '--'
-}
-
 function StatCard({ label, value, tone = '' }) {
   return (
     <article className={`unified-stat-card ${tone}`}>
@@ -54,6 +38,7 @@ function StatCard({ label, value, tone = '' }) {
 
 function Alarms() {
   const [alarms, setAlarms] = useState([])
+  const [metricConfigs, setMetricConfigs] = useState(() => readMetricConfigs())
   const [statusFilter, setStatusFilter] = useState('all')
   const [severityFilter, setSeverityFilter] = useState('all')
   const [query, setQuery] = useState('')
@@ -77,8 +62,23 @@ function Alarms() {
   useEffect(() => {
     loadAlarms()
 
+    function handleMetricConfigChanged() {
+      setMetricConfigs(readMetricConfigs())
+    }
+
+    window.addEventListener(
+      'metricDisplayConfigChanged',
+      handleMetricConfigChanged
+    )
+
     const timer = setInterval(loadAlarms, 10000)
-    return () => clearInterval(timer)
+    return () => {
+      clearInterval(timer)
+      window.removeEventListener(
+        'metricDisplayConfigChanged',
+        handleMetricConfigChanged
+      )
+    }
   }, [])
 
   async function handleAcknowledge(id) {
@@ -92,6 +92,10 @@ function Alarms() {
     } finally {
       setActionLoading('')
     }
+  }
+
+  function getAlarmMetricMeta(alarm) {
+    return getMetricMeta(alarm.device_id, alarm.metric, metricConfigs)
   }
 
   const stats = useMemo(() => {
@@ -253,8 +257,9 @@ function Alarms() {
                 {filteredAlarms.map((alarm) => {
                   const severity = alarm.severity?.toLowerCase() || 'warning'
                   const isActive = alarm.status === 'active'
-                  const metricLabel = getMetricLabel(alarm.metric)
-                  const unit = getUnit(alarm.metric)
+                  const metricMeta = getAlarmMetricMeta(alarm)
+                  const metricLabel = metricMeta.displayName
+                  const unit = metricMeta.unit
 
                   return (
                     <tr key={alarm.id} className={isActive ? 'active-row' : ''}>
@@ -275,15 +280,12 @@ function Alarms() {
                         <span>Metric abnormal detected</span>
                       </td>
                       <td>
-                        <strong>
-                          {formatValue(alarm.value)}
-                          {unit}
-                        </strong>
+                        <strong>{formatMetricValue(alarm.value, unit)}</strong>
                       </td>
                       <td>
                         <strong>
-                          {alarm.operator} {formatValue(alarm.threshold)}
-                          {unit}
+                          {alarm.operator}{' '}
+                          {formatMetricValue(alarm.threshold, unit)}
                         </strong>
                       </td>
                       <td>

@@ -5,11 +5,17 @@ import { getDevices, getAlarms } from '../services/api'
 import { connectRealtime, disconnectRealtime } from '../services/realtime'
 import { useAlarm } from '../context/AlarmContext'
 import DeviceMap from '../components/DeviceMap'
+import {
+  getDeviceMetricConfig,
+  getDeviceMetricValue,
+  readMetricConfigs,
+} from '../utils/metricDisplayConfig'
 
 function Dashboard({ onOpenDevice }) {
   const [devices, setDevices] = useState([])
   const [loading, setLoading] = useState(true)
   const [alarmCount, setAlarmCount] = useState(0)
+  const [metricConfigs, setMetricConfigs] = useState(() => readMetricConfigs())
 
   const [dashboardDisplay, setDashboardDisplay] = useState({
     showDeviceOverview: true,
@@ -52,6 +58,16 @@ function Dashboard({ onOpenDevice }) {
     })
   }
 
+  function loadMetricDisplayConfig() {
+    setMetricConfigs(readMetricConfigs())
+  }
+
+  function getVisibleMetrics(device) {
+    return getDeviceMetricConfig(device.id, metricConfigs)
+      .filter((metric) => metric.enabled)
+      .slice(0, 3)
+  }
+
   function getDeviceHealth(device) {
     if (device.status === 'offline') {
       return { className: 'critical' }
@@ -74,6 +90,10 @@ function Dashboard({ onOpenDevice }) {
     loadAlarms()
 
     window.addEventListener('dashboardSettingsChanged', loadDisplaySettings)
+    window.addEventListener(
+      'metricDisplayConfigChanged',
+      loadMetricDisplayConfig
+    )
 
     const user = auth.currentUser
 
@@ -101,6 +121,10 @@ function Dashboard({ onOpenDevice }) {
       window.removeEventListener(
         'dashboardSettingsChanged',
         loadDisplaySettings
+      )
+      window.removeEventListener(
+        'metricDisplayConfigChanged',
+        loadMetricDisplayConfig
       )
     }
   }, [addAlarm])
@@ -191,7 +215,10 @@ function Dashboard({ onOpenDevice }) {
         <section className="app-card">
           <div className="app-section-title">
             <h2>Devices Overview</h2>
-            <p>Temperature & Humidity ล่าสุดจากอุปกรณ์ทั้งหมด</p>
+            <p>
+              Metric ล่าสุดจากอุปกรณ์ทั้งหมดตามชื่อและหน่วยที่ตั้งไว้ในหน้า
+              Device
+            </p>
           </div>
 
           {loading ? (
@@ -216,22 +243,12 @@ function Dashboard({ onOpenDevice }) {
                     {device.name || device.device_code || 'Unnamed Device'}
                   </div>
 
-                  <div className="overview-values">
-                    <span>
-                      🌡️{' '}
-                      {device.temperature != null
-                        ? Number(device.temperature).toFixed(1)
-                        : '--'}
-                      °C
-                    </span>
-
-                    <span>
-                      💧{' '}
-                      {device.humidity != null
-                        ? Number(device.humidity).toFixed(1)
-                        : '--'}
-                      %
-                    </span>
+                  <div className="overview-values dynamic-overview-values">
+                    {getVisibleMetrics(device).map((metric) => (
+                      <span key={metric.id} title={metric.displayName}>
+                        {metric.icon} {getDeviceMetricValue(device, metric)}
+                      </span>
+                    ))}
                   </div>
                 </div>
               ))}

@@ -7384,7 +7384,7 @@ textarea,
 }
 /* =========================================================
    Device Metric Display Config
-   ใช้คู่กับ Devices_metric_display.jsx
+   ใช้คู่กับ Devices_metric_name_combobox.jsx
 ========================================================= */
 
 .device-metric-config-section {
@@ -7412,7 +7412,7 @@ textarea,
 
 .metric-config-row {
   display: grid;
-  grid-template-columns: 1fr 1.3fr 0.75fr 0.65fr 74px 42px;
+  grid-template-columns: minmax(220px, 1.8fr) 0.75fr 0.65fr 74px 42px;
   gap: 10px;
   align-items: end;
   padding: 12px;
@@ -7501,4 +7501,89 @@ textarea,
   .metric-config-actions button {
     width: 100%;
   }
+}
+
+/* =========================================================
+   Metric Config - Text Name / Text Unit / Select Icon
+========================================================= */
+
+.metric-config-row select {
+  width: 100%;
+  min-height: 40px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--input, var(--panel));
+  color: var(--text);
+  padding: 0 12px;
+  outline: none;
+}
+
+.metric-config-row select:focus {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.14);
+}
+
+/* =========================================================
+   Device Page - Table Only + Metric Name Fix
+========================================================= */
+.device-view-switch,
+.device-v2-grid {
+  display: none !important;
+}
+
+.device-v2-table-wrap {
+  display: block;
+  width: 100%;
+}
+
+.metric-config-row input[value='custom_metric'],
+.metric-config-row input[value='custom_met'] {
+  color: var(--text);
+}
+
+.metric-config-row label input::placeholder {
+  color: var(--muted);
+}
+
+/* =========================================================
+   Metric Display Save State
+========================================================= */
+
+.metric-config-note {
+  margin-top: 10px;
+  padding: 10px 12px;
+  border-radius: 14px;
+  font-size: 13px;
+  font-weight: 800;
+  line-height: 1.45;
+}
+
+.metric-config-note.warning {
+  color: #92400e;
+  background: rgba(245, 158, 11, 0.14);
+  border: 1px solid rgba(245, 158, 11, 0.28);
+}
+
+.metric-config-note.success {
+  color: #16a34a;
+  background: rgba(34, 197, 94, 0.12);
+  border: 1px solid rgba(34, 197, 94, 0.24);
+}
+
+.metric-save-btn {
+  min-width: 132px;
+}
+
+.dynamic-overview-values {
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.dynamic-overview-values span {
+  min-width: fit-content;
+}
+
+.table-metric-stack b {
+  color: var(--text);
+  font-weight: 900;
 }

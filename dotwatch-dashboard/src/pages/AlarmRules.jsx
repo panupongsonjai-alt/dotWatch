@@ -6,6 +6,11 @@ import {
   deleteAlarmRule,
   getDevices,
 } from '../services/api'
+import {
+  getDeviceMetricConfig,
+  getMetricMeta,
+  readMetricConfigs,
+} from '../utils/metricDisplayConfig'
 
 const defaultForm = {
   device_id: '',
@@ -23,20 +28,6 @@ const FILTERS = [
   { label: 'Warning', value: 'warning' },
 ]
 
-function getMetricLabel(metric) {
-  if (metric === 'temperature') return 'Temperature'
-  if (metric === 'humidity') return 'Humidity'
-  if (metric === 'rssi') return 'RSSI'
-  return metric || '--'
-}
-
-function getUnit(metric) {
-  if (metric === 'temperature') return '°C'
-  if (metric === 'humidity') return '%'
-  if (metric === 'rssi') return 'dBm'
-  return ''
-}
-
 function getDeviceId(rule) {
   return rule.device_id ?? rule.deviceId ?? rule.device?.id ?? ''
 }
@@ -53,6 +44,7 @@ function StatCard({ label, value, tone = '' }) {
 function AlarmRules() {
   const [rules, setRules] = useState([])
   const [devices, setDevices] = useState([])
+  const [metricConfigs, setMetricConfigs] = useState(() => readMetricConfigs())
   const [form, setForm] = useState(defaultForm)
   const [filter, setFilter] = useState('all')
   const [query, setQuery] = useState('')
@@ -83,18 +75,59 @@ function AlarmRules() {
 
   useEffect(() => {
     loadData()
+
+    function handleMetricConfigChanged() {
+      setMetricConfigs(readMetricConfigs())
+    }
+
+    window.addEventListener(
+      'metricDisplayConfigChanged',
+      handleMetricConfigChanged
+    )
+
+    return () => {
+      window.removeEventListener(
+        'metricDisplayConfigChanged',
+        handleMetricConfigChanged
+      )
+    }
   }, [])
 
   function updateForm(field, value) {
-    setForm((prev) => ({
-      ...prev,
-      [field]: value,
-    }))
+    setForm((prev) => {
+      if (field === 'device_id') {
+        const options = getMetricOptions(value)
+        return {
+          ...prev,
+          device_id: value,
+          metric: options[0]?.sourceKey || 'temperature',
+        }
+      }
+
+      return {
+        ...prev,
+        [field]: value,
+      }
+    })
   }
 
   function getDeviceName(id) {
     const device = devices.find((item) => String(item.id) === String(id))
     return device?.name || device?.device_code || `Device #${id}`
+  }
+
+  function getMetricOptions(deviceId) {
+    return getDeviceMetricConfig(deviceId, metricConfigs).filter(
+      (metric) => metric.enabled && metric.sourceKey
+    )
+  }
+
+  function getMetricLabel(deviceId, metricKey) {
+    return getMetricMeta(deviceId, metricKey, metricConfigs).displayName
+  }
+
+  function getUnit(deviceId, metricKey) {
+    return getMetricMeta(deviceId, metricKey, metricConfigs).unit
   }
 
   async function handleCreate(event) {
@@ -291,11 +324,15 @@ function AlarmRules() {
             Metric
             <select
               value={form.metric}
+              disabled={!form.device_id}
               onChange={(event) => updateForm('metric', event.target.value)}
             >
-              <option value="temperature">Temperature</option>
-              <option value="humidity">Humidity</option>
-              <option value="rssi">RSSI</option>
+              {getMetricOptions(form.device_id).map((metric) => (
+                <option key={metric.id} value={metric.sourceKey}>
+                  {metric.displayName}
+                  {metric.unit ? ` (${metric.unit})` : ''}
+                </option>
+              ))}
             </select>
           </label>
 
@@ -394,8 +431,9 @@ function AlarmRules() {
                 {filteredRules.map((rule) => {
                   const severity = rule.severity || 'warning'
                   const isActive = Boolean(rule.is_active)
-                  const metricLabel = getMetricLabel(rule.metric)
-                  const unit = getUnit(rule.metric)
+                  const deviceId = getDeviceId(rule)
+                  const metricLabel = getMetricLabel(deviceId, rule.metric)
+                  const unit = getUnit(deviceId, rule.metric)
 
                   return (
                     <tr key={rule.id}>
