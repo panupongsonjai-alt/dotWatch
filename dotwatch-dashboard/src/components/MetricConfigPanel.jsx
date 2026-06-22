@@ -107,52 +107,62 @@ export default function MetricConfigPanel({ deviceId }) {
       {message && <div className="metric-config-message">{message}</div>}
 
       <div className="metric-config-table">
-        <div className="metric-config-table-head">
+        <div className="metric-config-table-head clean">
           <span>Metric Name</span>
           <span>Unit</span>
           <span>Icon</span>
-          <span>Visible</span>
+          <span>Show</span>
           <span />
         </div>
 
         {draftMetrics.map((metric, index) => (
           <div
-            className="metric-config-row"
+            className="metric-config-row clean"
             key={metric.id ? `metric-${metric.id}` : `metric-${index}`}
           >
-            <input
-              value={metric.metric_name || ''}
-              placeholder={`เช่น ${index === 0 ? 'Supply Air' : 'Metric Name'}`}
-              onChange={(event) =>
-                updateMetric(index, 'metric_name', event.target.value)
-              }
-              disabled={loading || saving}
-            />
+            <label>
+              <span>Metric Name</span>
+              <input
+                value={metric.metric_name || ''}
+                placeholder={`Name-${String(index + 1).padStart(2, '0')}`}
+                onChange={(event) =>
+                  updateMetric(index, 'metric_name', event.target.value)
+                }
+                disabled={loading || saving}
+              />
+            </label>
 
-            <input
-              value={metric.unit || ''}
-              placeholder="เช่น °C, %, kWh"
-              onChange={(event) =>
-                updateMetric(index, 'unit', event.target.value)
-              }
-              disabled={loading || saving}
-            />
+            <label>
+              <span>Unit</span>
+              <input
+                value={metric.unit || ''}
+                placeholder="°C, %, kWh"
+                onChange={(event) =>
+                  updateMetric(index, 'unit', event.target.value)
+                }
+                disabled={loading || saving}
+              />
+            </label>
 
-            <select
-              value={metric.icon || 'Activity'}
-              onChange={(event) =>
-                updateMetric(index, 'icon', event.target.value)
-              }
-              disabled={loading || saving}
-            >
-              {METRIC_ICON_OPTIONS.map((icon) => (
-                <option key={icon} value={icon}>
-                  {icon}
-                </option>
-              ))}
-            </select>
+            <label>
+              <span>Icon</span>
+              <select
+                value={metric.icon || 'Activity'}
+                onChange={(event) =>
+                  updateMetric(index, 'icon', event.target.value)
+                }
+                disabled={loading || saving}
+              >
+                {METRIC_ICON_OPTIONS.map((icon) => (
+                  <option key={icon} value={icon}>
+                    {icon}
+                  </option>
+                ))}
+              </select>
+            </label>
 
-            <label className="metric-visible-toggle">
+            <label className="metric-visible-clean">
+              <span>Show</span>
               <input
                 type="checkbox"
                 checked={metric.visible !== false}
@@ -161,7 +171,6 @@ export default function MetricConfigPanel({ deviceId }) {
                 }
                 disabled={loading || saving}
               />
-              Show
             </label>
 
             <button

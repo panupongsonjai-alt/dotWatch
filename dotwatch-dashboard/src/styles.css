@@ -7749,3 +7749,117 @@ textarea,
   display: flex;
   gap: 8px;
 }
+
+.metric-config-panel {
+  padding: 18px;
+  border-radius: 20px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+}
+
+.metric-config-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+.metric-config-header h4 {
+  margin: 0 0 6px;
+  font-size: 16px;
+  font-weight: 800;
+}
+
+.metric-config-header p {
+  margin: 0;
+  color: #64748b;
+  font-size: 13px;
+}
+
+.metric-config-table {
+  display: grid;
+  gap: 10px;
+}
+
+.metric-config-table-head.clean {
+  display: grid;
+  grid-template-columns: 2fr 0.8fr 0.9fr 90px 48px;
+  gap: 12px;
+  padding: 0 14px;
+  color: #64748b;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.metric-config-row.clean {
+  display: grid;
+  grid-template-columns: 2fr 0.8fr 0.9fr 90px 48px;
+  gap: 12px;
+  align-items: end;
+  padding: 14px;
+  border-radius: 18px;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+}
+
+.metric-config-row.clean label {
+  display: grid;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 700;
+  color: #64748b;
+}
+
+.metric-config-row.clean input,
+.metric-config-row.clean select {
+  height: 42px;
+  border-radius: 12px;
+  border: 1px solid #dbe3ee;
+  background: #ffffff;
+  padding: 0 12px;
+  font-size: 14px;
+  color: #0f172a;
+  outline: none;
+}
+
+.metric-config-row.clean input:focus,
+.metric-config-row.clean select:focus {
+  border-color: #2563eb;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
+}
+
+.metric-visible-clean {
+  justify-items: center;
+}
+
+.metric-visible-clean input {
+  width: 22px;
+  height: 22px;
+  accent-color: #16a34a;
+}
+
+.metric-config-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.metric-save-btn {
+  min-width: 140px;
+}
+
+@media (max-width: 900px) {
+  .metric-config-table-head.clean {
+    display: none;
+  }
+
+  .metric-config-row.clean {
+    grid-template-columns: 1fr;
+  }
+
+  .metric-visible-clean {
+    justify-items: start;
+  }
+}
