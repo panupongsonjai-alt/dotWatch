@@ -3,6 +3,24 @@ import { useDeviceMetrics } from '../hooks/useDeviceMetrics'
 import { createBlankMetric } from '../utils/metricDisplayConfig'
 import { METRIC_ICON_OPTIONS, MetricIcon } from '../utils/metricIcons'
 
+const UNIT_OPTIONS = [
+  '',
+  '°C',
+  '%',
+  'kWh',
+  'kW',
+  'W',
+  'V',
+  'A',
+  'bar',
+  'psi',
+  'Pa',
+  'L/min',
+  'm³/h',
+  'rpm',
+  'dBm',
+]
+
 function updateMetricList(metrics = [], metricIndex, key, value) {
   return metrics.map((metric, index) => {
     if (index !== metricIndex) return metric
@@ -80,13 +98,8 @@ export default function MetricConfigPanel({ deviceId }) {
     return success
   }
 
-  const previewMetrics = draftMetrics.filter(
-    (metric) =>
-      metric.visible !== false && String(metric.metric_name || '').trim()
-  )
-
   return (
-    <section className="metric-config-panel">
+    <section className="metric-config-panel clean-metric-panel">
       <div className="metric-config-header">
         <div>
           <h4>Metric Display</h4>
@@ -95,7 +108,7 @@ export default function MetricConfigPanel({ deviceId }) {
 
         <button
           type="button"
-          className="ghost-button"
+          className="ghost-button metric-add-btn"
           onClick={addMetric}
           disabled={loading || saving}
         >
@@ -135,13 +148,20 @@ export default function MetricConfigPanel({ deviceId }) {
             <label>
               <span>Unit</span>
               <input
+                list={`metric-unit-options-${deviceId}-${index}`}
                 value={metric.unit || ''}
-                placeholder="°C, %, kWh"
+                placeholder="เลือกหรือพิมพ์เอง"
                 onChange={(event) =>
                   updateMetric(index, 'unit', event.target.value)
                 }
                 disabled={loading || saving}
               />
+
+              <datalist id={`metric-unit-options-${deviceId}-${index}`}>
+                {UNIT_OPTIONS.map((unit) => (
+                  <option key={unit || 'blank'} value={unit} />
+                ))}
+              </datalist>
             </label>
 
             <label>
@@ -160,6 +180,10 @@ export default function MetricConfigPanel({ deviceId }) {
                 ))}
               </select>
             </label>
+
+            <div className="metric-icon-preview">
+              <MetricIcon name={metric.icon || 'Activity'} size={18} />
+            </div>
 
             <label className="metric-visible-clean">
               <span>Show</span>
@@ -185,20 +209,6 @@ export default function MetricConfigPanel({ deviceId }) {
           </div>
         ))}
       </div>
-
-      {previewMetrics.length > 0 && (
-        <div className="metric-config-preview">
-          {previewMetrics.map((metric, index) => (
-            <span
-              key={`${metric.metric_key || `metric_${index + 1}`}-${index}`}
-            >
-              <MetricIcon name={metric.icon} size={14} />
-              {metric.metric_name}
-              {metric.unit ? ` (${metric.unit})` : ''}
-            </span>
-          ))}
-        </div>
-      )}
 
       <div className="metric-config-actions">
         <button
