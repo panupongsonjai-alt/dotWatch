@@ -12,8 +12,10 @@ import {
   AlertTriangle,
   Bell,
   CheckCircle2,
+  CircleAlert,
   RefreshCw,
   Search,
+  ShieldAlert,
   Trash2,
 } from 'lucide-react'
 
@@ -27,10 +29,21 @@ function formatDate(value) {
   }
 }
 
+function formatRelativeTime(value) {
+  if (!value) return '--'
+
+  const date = new Date(value)
+  const diffSeconds = Math.max(0, Math.floor((Date.now() - date.getTime()) / 1000))
+
+  if (diffSeconds < 60) return `${diffSeconds}s ago`
+  if (diffSeconds < 3600) return `${Math.floor(diffSeconds / 60)}m ago`
+  if (diffSeconds < 86400) return `${Math.floor(diffSeconds / 3600)}h ago`
+
+  return `${Math.floor(diffSeconds / 86400)}d ago`
+}
+
 function formatValue(value, unit = '') {
-  if (value == null || value === '' || Number.isNaN(Number(value))) {
-    return '--'
-  }
+  if (value == null || value === '' || Number.isNaN(Number(value))) return '--'
 
   const numberValue = Number(value)
   const displayValue = Number.isInteger(numberValue)
@@ -52,6 +65,11 @@ function getStatusLabel(status) {
   return status || 'Unknown'
 }
 
+function getSeverityIcon(severity) {
+  if (severity === 'critical') return <ShieldAlert size={18} />
+  return <AlertTriangle size={18} />
+}
+
 function Alarms() {
   const [alarms, setAlarms] = useState([])
   const [rules, setRules] = useState([])
@@ -60,7 +78,7 @@ function Alarms() {
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [search, setSearch] = useState('')
-  const [statusFilter, setStatusFilter] = useState('all')
+  const [statusFilter, setStatusFilter] = useState('active')
   const [severityFilter, setSeverityFilter] = useState('all')
 
   async function loadData() {
@@ -189,6 +207,14 @@ function Alarms() {
     )
   }, [alarms])
 
+  const activeAlarms = useMemo(() => {
+    return alarms.filter((alarm) => alarm.status === 'active')
+  }, [alarms])
+
+  const criticalAlarms = useMemo(() => {
+    return activeAlarms.filter((alarm) => alarm.severity === 'critical')
+  }, [activeAlarms])
+
   const filteredAlarms = useMemo(() => {
     const keyword = search.trim().toLowerCase()
 
@@ -208,8 +234,7 @@ function Alarms() {
         .toLowerCase()
 
       const matchSearch = !keyword || text.includes(keyword)
-      const matchStatus =
-        statusFilter === 'all' || alarm.status === statusFilter
+      const matchStatus = statusFilter === 'all' || alarm.status === statusFilter
       const matchSeverity =
         severityFilter === 'all' || alarm.severity === severityFilter
 
@@ -217,13 +242,17 @@ function Alarms() {
     })
   }, [alarms, search, statusFilter, severityFilter, deviceMetrics])
 
+  const latestCritical = criticalAlarms[0]
+
   return (
-    <div className="page app-page alarms-page">
-      <section className="app-page-header">
+    <div className="page app-page alarms-page alarm-center-page">
+      <section className="alarm-center-hero">
         <div>
           <span className="page-eyebrow">Alarm Center</span>
-          <h2>Alarms</h2>
-          <p>ติดตาม Alarm Events และ Alarm Rules ของอุปกรณ์ทั้งหมด</p>
+          <h1>Operations Alarm Center</h1>
+          <p>
+            ตรวจสอบ Alarm Events, Active Alarm และ Alarm Rules ของอุปกรณ์ทั้งหมด
+          </p>
         </div>
 
         <button
@@ -237,256 +266,316 @@ function Alarms() {
         </button>
       </section>
 
-      <section className="app-summary-grid compact-summary-grid">
-        <div className="app-summary-card compact-summary-card">
-          <span>Total</span>
-          <strong>{summary.total}</strong>
-        </div>
-
-        <div className="app-summary-card compact-summary-card alarm-summary-card">
-          <span>Active</span>
+      <section className="alarm-summary-grid">
+        <article className="alarm-summary-card active">
+          <span>Active Alarms</span>
           <strong>{summary.active}</strong>
-        </div>
+          <small>ต้องตรวจสอบ</small>
+        </article>
 
-        <div className="app-summary-card compact-summary-card">
+        <article className="alarm-summary-card critical">
           <span>Critical</span>
           <strong>{summary.critical}</strong>
-        </div>
+          <small>ระดับรุนแรง</small>
+        </article>
 
-        <div className="app-summary-card compact-summary-card">
+        <article className="alarm-summary-card warning">
           <span>Warning</span>
           <strong>{summary.warning}</strong>
-        </div>
+          <small>ควรติดตาม</small>
+        </article>
 
-        <div className="app-summary-card compact-summary-card">
-          <span>Acknowledged</span>
-          <strong>{summary.acknowledged}</strong>
-        </div>
+        <article className="alarm-summary-card rules">
+          <span>Alarm Rules</span>
+          <strong>{rules.length}</strong>
+          <small>{rules.filter((rule) => rule.is_active).length} Active</small>
+        </article>
       </section>
 
-      <section className="app-card">
-        <div className="app-section-title">
-          <div>
-            <h2>Alarm Events</h2>
-            <p>รายการแจ้งเตือนล่าสุดจาก Dynamic Metrics</p>
-          </div>
-        </div>
+      <section className="alarm-center-grid">
+        <div className="alarm-center-main">
+          <section className="app-card alarm-panel-card">
+            <div className="alarm-panel-header">
+              <div>
+                <h2>Active Alarms</h2>
+                <p>รายการแจ้งเตือนที่ยังไม่ได้ Acknowledge</p>
+              </div>
+              <span className="status active">{activeAlarms.length} Active</span>
+            </div>
 
-        <div className="alarm-toolbar">
-          <label className="search-input">
-            <Search size={16} />
-            <input
-              value={search}
-              placeholder="Search device, metric, severity..."
-              onChange={(e) => setSearch(e.target.value)}
-            />
-          </label>
-
-          <select
-            value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value)}
-          >
-            <option value="all">All Status</option>
-            <option value="active">Active</option>
-            <option value="acknowledged">Acknowledged</option>
-          </select>
-
-          <select
-            value={severityFilter}
-            onChange={(e) => setSeverityFilter(e.target.value)}
-          >
-            <option value="all">All Severity</option>
-            <option value="critical">Critical</option>
-            <option value="warning">Warning</option>
-          </select>
-        </div>
-
-        {loading ? (
-          <div className="app-empty-state">
-            <h3>กำลังโหลดข้อมูล</h3>
-            <p>กำลังดึงข้อมูล Alarm จาก Backend</p>
-          </div>
-        ) : filteredAlarms.length === 0 ? (
-          <div className="app-empty-state">
-            <Bell size={30} />
-            <h3>ยังไม่มี Alarm</h3>
-            <p>เมื่อมีค่าเกินเงื่อนไข ระบบจะแสดงรายการที่นี่</p>
-          </div>
-        ) : (
-          <div className="alarm-table-wrap">
-            <table className="device-v2-table alarm-table">
-              <thead>
-                <tr>
-                  <th>Device</th>
-                  <th>Metric</th>
-                  <th>Condition</th>
-                  <th>Value</th>
-                  <th>Severity</th>
-                  <th>Status</th>
-                  <th>Triggered</th>
-                  <th />
-                </tr>
-              </thead>
-
-              <tbody>
-                {filteredAlarms.map((alarm) => {
-                  const metricInfo = getMetricInfo(
-                    alarm.device_id,
-                    alarm.metric
-                  )
+            {loading ? (
+              <div className="app-empty-state compact">
+                <h3>กำลังโหลดข้อมูล</h3>
+                <p>กำลังดึงข้อมูล Alarm จาก Backend</p>
+              </div>
+            ) : activeAlarms.length === 0 ? (
+              <div className="alarm-clear-state">
+                <CheckCircle2 size={34} />
+                <h3>No Active Alarm</h3>
+                <p>ตอนนี้ยังไม่มี Alarm ที่ต้องดำเนินการ</p>
+              </div>
+            ) : (
+              <div className="active-alarm-list">
+                {activeAlarms.slice(0, 8).map((alarm) => {
+                  const metricInfo = getMetricInfo(alarm.device_id, alarm.metric)
 
                   return (
-                    <tr key={alarm.id}>
-                      <td>
-                        <strong>{alarm.device_name || 'Unnamed Device'}</strong>
-                        <span>
-                          {alarm.device_code || `ID ${alarm.device_id}`}
-                        </span>
-                      </td>
+                    <article
+                      key={alarm.id}
+                      className={`active-alarm-card ${alarm.severity || 'warning'}`}
+                    >
+                      <div className="active-alarm-icon">
+                        {getSeverityIcon(alarm.severity)}
+                      </div>
 
-                      <td>
-                        <strong>{alarm.metric_name || metricInfo.name}</strong>
-                        <span>{alarm.metric}</span>
-                      </td>
+                      <div className="active-alarm-content">
+                        <div className="active-alarm-topline">
+                          <strong>{alarm.device_name || 'Unnamed Device'}</strong>
+                          <span className={`status ${alarm.severity}`}>
+                            {getSeverityLabel(alarm.severity)}
+                          </span>
+                        </div>
 
-                      <td>
-                        {alarm.operator}{' '}
-                        {formatValue(alarm.threshold, metricInfo.unit)}
-                      </td>
+                        <p>
+                          {alarm.metric_name || metricInfo.name}{' '}
+                          {alarm.operator}{' '}
+                          {formatValue(alarm.threshold, metricInfo.unit)}
+                        </p>
 
-                      <td>
-                        <strong>
-                          {formatValue(alarm.value, metricInfo.unit)}
-                        </strong>
-                      </td>
+                        <div className="active-alarm-meta">
+                          <span>
+                            Current:{' '}
+                            <b>{formatValue(alarm.value, metricInfo.unit)}</b>
+                          </span>
+                          <span>{formatRelativeTime(alarm.triggered_at)}</span>
+                        </div>
+                      </div>
 
-                      <td>
-                        <span className={`status ${alarm.severity}`}>
-                          {getSeverityLabel(alarm.severity)}
-                        </span>
-                      </td>
-
-                      <td>
-                        <span className={`status ${alarm.status}`}>
-                          {getStatusLabel(alarm.status)}
-                        </span>
-                      </td>
-
-                      <td>{formatDate(alarm.triggered_at)}</td>
-
-                      <td>
-                        {alarm.status === 'active' && (
-                          <button
-                            type="button"
-                            className="save-btn"
-                            disabled={saving}
-                            onClick={() => handleAcknowledge(alarm.id)}
-                          >
-                            <CheckCircle2 size={15} />
-                            Ack
-                          </button>
-                        )}
-                      </td>
-                    </tr>
+                      <button
+                        type="button"
+                        className="save-btn alarm-ack-btn"
+                        disabled={saving}
+                        onClick={() => handleAcknowledge(alarm.id)}
+                      >
+                        <CheckCircle2 size={15} />
+                        Ack
+                      </button>
+                    </article>
                   )
                 })}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </section>
+              </div>
+            )}
+          </section>
 
-      <section className="app-card">
-        <div className="app-section-title">
-          <div>
-            <h2>Alarm Rules</h2>
-            <p>Rule ทั้งหมดที่ตั้งไว้ในหน้า Device</p>
-          </div>
+          <section className="app-card alarm-panel-card">
+            <div className="alarm-panel-header with-toolbar">
+              <div>
+                <h2>Alarm Events</h2>
+                <p>ประวัติ Alarm ล่าสุดจาก Dynamic Metrics</p>
+              </div>
+            </div>
+
+            <div className="alarm-toolbar clean">
+              <label className="search-input">
+                <Search size={16} />
+                <input
+                  value={search}
+                  placeholder="Search device, metric, severity..."
+                  onChange={(e) => setSearch(e.target.value)}
+                />
+              </label>
+
+              <select
+                value={statusFilter}
+                onChange={(e) => setStatusFilter(e.target.value)}
+              >
+                <option value="all">All Status</option>
+                <option value="active">Active</option>
+                <option value="acknowledged">Acknowledged</option>
+              </select>
+
+              <select
+                value={severityFilter}
+                onChange={(e) => setSeverityFilter(e.target.value)}
+              >
+                <option value="all">All Severity</option>
+                <option value="critical">Critical</option>
+                <option value="warning">Warning</option>
+              </select>
+            </div>
+
+            {filteredAlarms.length === 0 ? (
+              <div className="app-empty-state">
+                <Bell size={30} />
+                <h3>ยังไม่มี Alarm</h3>
+                <p>เมื่อมีค่าเกินเงื่อนไข ระบบจะแสดงรายการที่นี่</p>
+              </div>
+            ) : (
+              <div className="alarm-table-wrap">
+                <table className="device-v2-table alarm-table alarm-center-table">
+                  <thead>
+                    <tr>
+                      <th>Device</th>
+                      <th>Metric</th>
+                      <th>Condition</th>
+                      <th>Value</th>
+                      <th>Severity</th>
+                      <th>Status</th>
+                      <th>Triggered</th>
+                      <th />
+                    </tr>
+                  </thead>
+
+                  <tbody>
+                    {filteredAlarms.map((alarm) => {
+                      const metricInfo = getMetricInfo(alarm.device_id, alarm.metric)
+
+                      return (
+                        <tr key={alarm.id}>
+                          <td>
+                            <strong>{alarm.device_name || 'Unnamed Device'}</strong>
+                            <span>{alarm.device_code || `ID ${alarm.device_id}`}</span>
+                          </td>
+
+                          <td>
+                            <strong>{alarm.metric_name || metricInfo.name}</strong>
+                            <span>{alarm.metric}</span>
+                          </td>
+
+                          <td>
+                            {alarm.operator}{' '}
+                            {formatValue(alarm.threshold, metricInfo.unit)}
+                          </td>
+
+                          <td>
+                            <strong>{formatValue(alarm.value, metricInfo.unit)}</strong>
+                          </td>
+
+                          <td>
+                            <span className={`status ${alarm.severity}`}>
+                              {getSeverityLabel(alarm.severity)}
+                            </span>
+                          </td>
+
+                          <td>
+                            <span className={`status ${alarm.status}`}>
+                              {getStatusLabel(alarm.status)}
+                            </span>
+                          </td>
+
+                          <td>{formatDate(alarm.triggered_at)}</td>
+
+                          <td>
+                            {alarm.status === 'active' && (
+                              <button
+                                type="button"
+                                className="save-btn"
+                                disabled={saving}
+                                onClick={() => handleAcknowledge(alarm.id)}
+                              >
+                                <CheckCircle2 size={15} />
+                                Ack
+                              </button>
+                            )}
+                          </td>
+                        </tr>
+                      )
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </section>
         </div>
 
-        {rules.length === 0 ? (
-          <div className="app-empty-state">
-            <AlertTriangle size={30} />
-            <h3>ยังไม่มี Alarm Rule</h3>
-            <p>ไปที่หน้า Device → Manage เพื่อตั้ง Rule ให้แต่ละ Metric</p>
-          </div>
-        ) : (
-          <div className="alarm-table-wrap">
-            <table className="device-v2-table alarm-table">
-              <thead>
-                <tr>
-                  <th>Device</th>
-                  <th>Metric</th>
-                  <th>Condition</th>
-                  <th>Severity</th>
-                  <th>Status</th>
-                  <th>Created</th>
-                  <th />
-                </tr>
-              </thead>
+        <aside className="alarm-center-side">
+          <section className="app-card critical-focus-card">
+            <div className="critical-focus-icon">
+              <CircleAlert size={22} />
+            </div>
 
-              <tbody>
-                {rules.map((rule) => {
+            <span>Critical Focus</span>
+
+            {latestCritical ? (
+              <>
+                <h3>{latestCritical.device_name || 'Unnamed Device'}</h3>
+                <p>
+                  {latestCritical.metric_name || latestCritical.metric}{' '}
+                  {latestCritical.operator}{' '}
+                  {formatValue(latestCritical.threshold, getMetricInfo(latestCritical.device_id, latestCritical.metric).unit)}
+                </p>
+                <strong>
+                  {formatValue(
+                    latestCritical.value,
+                    getMetricInfo(latestCritical.device_id, latestCritical.metric).unit
+                  )}
+                </strong>
+                <small>{formatRelativeTime(latestCritical.triggered_at)}</small>
+              </>
+            ) : (
+              <>
+                <h3>No Critical Alarm</h3>
+                <p>ยังไม่มี Critical Alarm ที่ต้องรีบจัดการ</p>
+              </>
+            )}
+          </section>
+
+          <section className="app-card alarm-rules-card">
+            <div className="alarm-panel-header compact">
+              <div>
+                <h2>Alarm Rules</h2>
+                <p>Rule ทั้งหมดที่ตั้งไว้</p>
+              </div>
+            </div>
+
+            {rules.length === 0 ? (
+              <div className="app-empty-state compact">
+                <AlertTriangle size={30} />
+                <h3>ยังไม่มี Rule</h3>
+                <p>ไปที่หน้า Device เพื่อกำหนด Rule</p>
+              </div>
+            ) : (
+              <div className="alarm-rule-list-clean">
+                {rules.slice(0, 10).map((rule) => {
                   const metricInfo = getMetricInfo(rule.device_id, rule.metric)
 
                   return (
-                    <tr key={rule.id}>
-                      <td>
+                    <article key={rule.id} className="alarm-rule-card-clean">
+                      <div>
                         <strong>{rule.device_name || 'Unnamed Device'}</strong>
                         <span>
-                          {rule.device_code || `ID ${rule.device_id}`}
+                          {rule.metric_name || metricInfo.name} {rule.operator}{' '}
+                          {formatValue(rule.threshold, metricInfo.unit)}
                         </span>
-                      </td>
+                      </div>
 
-                      <td>
-                        <strong>{rule.metric_name || metricInfo.name}</strong>
-                        <span>{rule.metric}</span>
-                      </td>
-
-                      <td>
-                        {rule.operator}{' '}
-                        {formatValue(rule.threshold, metricInfo.unit)}
-                      </td>
-
-                      <td>
-                        <span className={`status ${rule.severity}`}>
-                          {getSeverityLabel(rule.severity)}
-                        </span>
-                      </td>
-
-                      <td>
+                      <div className="alarm-rule-card-actions">
                         <button
                           type="button"
-                          className={
-                            rule.is_active ? 'status online' : 'status offline'
-                          }
+                          className={rule.is_active ? 'status online' : 'status offline'}
                           disabled={saving}
                           onClick={() => handleToggleRule(rule)}
                         >
-                          {rule.is_active ? 'Active' : 'Disabled'}
+                          {rule.is_active ? 'Active' : 'Off'}
                         </button>
-                      </td>
 
-                      <td>{formatDate(rule.created_at)}</td>
-
-                      <td>
                         <button
                           type="button"
-                          className="delete-btn"
+                          className="delete-btn square"
                           disabled={saving}
                           onClick={() => handleDeleteRule(rule.id)}
+                          title="Delete rule"
                         >
                           <Trash2 size={15} />
-                          Delete
                         </button>
-                      </td>
-                    </tr>
+                      </div>
+                    </article>
                   )
                 })}
-              </tbody>
-            </table>
-          </div>
-        )}
+              </div>
+            )}
+          </section>
+        </aside>
       </section>
     </div>
   )
