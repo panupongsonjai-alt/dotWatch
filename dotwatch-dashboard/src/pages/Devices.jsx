@@ -1061,28 +1061,6 @@ function Devices() {
             dotWatch
           </p>
         </div>
-
-        <div className="device-v2-header-actions">
-          <button
-            type="button"
-            className="ghost-button"
-            onClick={reloadAll}
-            disabled={loading || saving}
-          >
-            <RefreshCw size={17} />
-            Refresh
-          </button>
-
-          <button
-            type="button"
-            className="primary-button"
-            onClick={openCreateWizard}
-            disabled={saving}
-          >
-            <Plus size={18} />
-            Create Device
-          </button>
-        </div>
       </section>
 
       <section className="device-header-stats clean-device-stats app-summary-grid">
@@ -1118,6 +1096,17 @@ function Devices() {
               <div>
                 <h3>Devices</h3>
                 <p>{devices.length} devices registered</p>
+                <div className="device-v2-header-actions">
+                  <button
+                    type="button"
+                    className="primary-button"
+                    onClick={openCreateWizard}
+                    disabled={saving}
+                  >
+                    <Plus size={18} />
+                    Create Device
+                  </button>
+                </div>
               </div>
             </div>
 

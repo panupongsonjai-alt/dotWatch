@@ -4390,3 +4390,531 @@ textarea:focus {
     grid-template-columns: 1fr;
   }
 }
+
+.metric-config-table-head {
+  display: grid;
+  grid-template-columns: 1.5fr 0.7fr 1fr 90px 46px;
+  gap: 10px;
+  padding: 0 14px 8px;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.metric-config-row {
+  display: grid;
+  grid-template-columns: 1.5fr 0.7fr 1fr 90px 46px;
+  gap: 10px;
+  align-items: center;
+  padding: 12px 14px;
+  border-radius: 16px;
+  background: var(--panel);
+  border: 1px solid var(--border);
+}
+
+.metric-config-row input,
+.metric-config-row select {
+  height: 40px;
+  min-height: 40px;
+}
+
+.metric-visible-toggle {
+  display: inline-flex !important;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.metric-visible-toggle input {
+  width: 18px;
+  height: 18px;
+  min-height: 18px;
+  accent-color: var(--primary);
+}
+
+@media (max-width: 900px) {
+  .metric-config-table-head {
+    display: none;
+  }
+
+  .metric-config-row {
+    grid-template-columns: 1fr;
+  }
+
+  .metric-visible-toggle {
+    justify-content: flex-start;
+  }
+}
+
+/* =========================================================
+   dotWatch Final Fix - Devices V2 Metric Editor
+   This block intentionally stays last to override older layout rules.
+========================================================= */
+
+.device-metric-config-section,
+.metric-config-panel,
+.clean-metric-panel {
+  gap: 16px;
+}
+
+.metric-config-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 14px;
+}
+
+.metric-config-header h4 {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 900;
+}
+
+.metric-config-header p {
+  margin: 5px 0 0;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.metric-config-table,
+.metric-config-list {
+  display: grid;
+  gap: 10px;
+}
+
+.metric-config-table-head,
+.metric-config-table-head.clean {
+  display: grid !important;
+  grid-template-columns:
+    minmax(220px, 1.6fr) minmax(90px, 0.65fr) minmax(160px, 1fr)
+    86px 46px;
+  gap: 10px;
+  align-items: center;
+  padding: 0 14px 8px;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 900;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.metric-config-row,
+.metric-config-row.clean {
+  display: grid !important;
+  grid-template-columns:
+    minmax(220px, 1.6fr) minmax(90px, 0.65fr) minmax(160px, 1fr)
+    86px 46px;
+  gap: 10px;
+  align-items: center !important;
+  padding: 12px 14px !important;
+  border-radius: 16px;
+  background: var(--panel) !important;
+  border: 1px solid var(--border);
+}
+
+.metric-config-row label,
+.metric-config-row.clean label {
+  display: block !important;
+  min-width: 0;
+  margin: 0;
+  color: var(--muted);
+  font-size: 0;
+  font-weight: 800;
+}
+
+.metric-config-row input,
+.metric-config-row select,
+.metric-config-row.clean input,
+.metric-config-row.clean select {
+  width: 100%;
+  height: 40px !important;
+  min-height: 40px !important;
+  padding: 0 12px;
+  border-radius: 12px;
+  font-size: 13px;
+}
+
+.metric-icon-preview {
+  width: 42px;
+  height: 40px;
+  border-radius: 12px;
+}
+
+.metric-visible-clean,
+.metric-config-toggle,
+.metric-visible-toggle {
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 8px;
+  width: 100%;
+  height: 40px;
+  margin: 0;
+  color: var(--muted);
+  font-size: 12px !important;
+}
+
+.metric-visible-clean input,
+.metric-config-toggle input,
+.metric-visible-toggle input {
+  width: 18px !important;
+  height: 18px !important;
+  min-height: 18px !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  accent-color: var(--primary);
+}
+
+.metric-config-row .delete-btn,
+.metric-config-row.clean .delete-btn {
+  width: 40px !important;
+  height: 40px !important;
+  min-height: 40px !important;
+  padding: 0 !important;
+  border-radius: 12px;
+}
+
+.metric-config-actions {
+  margin-top: 14px;
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+/* Alarm rule rows inside device management */
+.alarm-rule-create-row,
+.device-alarm-rule-item {
+  display: grid !important;
+  grid-template-columns:
+    minmax(180px, 1.3fr) 110px minmax(120px, 0.8fr)
+    130px auto;
+  gap: 10px;
+  align-items: center;
+  padding: 12px 14px;
+}
+
+.alarm-rule-create-row select,
+.alarm-rule-create-row input,
+.device-alarm-rule-item select,
+.device-alarm-rule-item input {
+  max-width: none !important;
+  width: 100%;
+  height: 40px;
+  min-height: 40px;
+}
+
+.device-alarm-rule-item > strong {
+  min-width: 0 !important;
+  font-size: 13px;
+}
+
+.alarm-rule-actions {
+  margin-left: 0 !important;
+  justify-content: flex-end;
+}
+
+/* Devices V2 polish */
+.devices-v2-shell {
+  grid-template-columns: 320px minmax(0, 1fr);
+}
+
+.devices-v2-list-card {
+  max-height: calc(100vh - 120px);
+  overflow: auto;
+}
+
+.devices-v2-item {
+  transition:
+    transform 0.18s ease,
+    border-color 0.18s ease,
+    background-color 0.18s ease,
+    box-shadow 0.18s ease;
+}
+
+.devices-v2-item:hover {
+  transform: translateY(-1px);
+  border-color: rgba(37, 99, 235, 0.35);
+  box-shadow: 0 12px 28px rgba(15, 23, 42, 0.08);
+}
+
+.devices-v2-config > .app-card {
+  overflow: hidden;
+}
+
+/* Keep dashboard summary compact */
+.app-summary-grid.compact-summary-grid {
+  grid-template-columns: repeat(6, minmax(120px, 1fr)) !important;
+}
+
+.compact-summary-card {
+  min-height: 82px !important;
+  padding: 13px 15px !important;
+}
+
+.compact-summary-card strong {
+  font-size: 28px !important;
+}
+
+@media (max-width: 1100px) {
+  .devices-v2-shell {
+    grid-template-columns: 1fr;
+  }
+
+  .devices-v2-list-card {
+    position: static;
+    max-height: none;
+  }
+}
+
+@media (max-width: 900px) {
+  .metric-config-table-head,
+  .metric-config-table-head.clean {
+    display: none !important;
+  }
+
+  .metric-config-row,
+  .metric-config-row.clean {
+    grid-template-columns: 1fr !important;
+  }
+
+  .metric-config-row label,
+  .metric-config-row.clean label {
+    font-size: 12px;
+  }
+
+  .metric-visible-clean,
+  .metric-config-toggle,
+  .metric-visible-toggle {
+    justify-content: flex-start !important;
+  }
+
+  .alarm-rule-create-row,
+  .device-alarm-rule-item {
+    grid-template-columns: 1fr !important;
+  }
+
+  .alarm-rule-actions {
+    justify-content: stretch;
+  }
+
+  .alarm-rule-actions button {
+    flex: 1;
+  }
+}
+
+@media (max-width: 760px) {
+  .app-summary-grid.compact-summary-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  }
+}
+
+/* =========================================================
+   Metric Config Panel V2 - Clean Editor
+========================================================= */
+
+.metric-config-panel-v2 {
+  gap: 18px;
+}
+
+.metric-config-table-v2 {
+  display: grid;
+  gap: 10px;
+}
+
+.metric-config-table-head-v2,
+.metric-config-row-v2 {
+  display: grid;
+  grid-template-columns: minmax(220px, 1.5fr) minmax(110px, 0.6fr) minmax(
+      160px,
+      0.9fr
+    ) 94px 46px;
+  gap: 10px;
+  align-items: center;
+}
+
+.metric-config-table-head-v2 {
+  padding: 0 14px;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 900;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.metric-config-row-v2 {
+  padding: 12px 14px;
+  border-radius: 16px;
+  background: var(--panel);
+  border: 1px solid var(--border);
+}
+
+.metric-config-row-v2 input,
+.metric-config-row-v2 select {
+  height: 40px;
+  min-height: 40px;
+  padding: 0 12px;
+  border-radius: 12px;
+}
+
+.metric-visible-toggle {
+  display: inline-flex !important;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 7px;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.metric-visible-toggle input {
+  width: 17px;
+  height: 17px;
+  min-height: 17px;
+  padding: 0;
+  accent-color: var(--primary);
+}
+
+.metric-preview-strip {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 12px;
+  border-radius: 16px;
+  background: var(--panel);
+  border: 1px dashed var(--border);
+}
+
+.metric-preview-strip span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 10px;
+  border-radius: 999px;
+  background: var(--panel-2);
+  border: 1px solid var(--border);
+  color: var(--text);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.alarm-rules-panel-v2 {
+  display: grid;
+  gap: 12px;
+  padding-top: 18px;
+  border-top: 1px solid var(--border);
+}
+
+.alarm-rules-header-v2 h4 {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 900;
+}
+
+.alarm-rules-header-v2 p {
+  margin: 5px 0 0;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.alarm-rule-create-row-v2 {
+  display: grid;
+  grid-template-columns: minmax(220px, 1.5fr) 110px minmax(
+      160px,
+      0.9fr
+    ) 140px 110px;
+  gap: 10px;
+  align-items: center;
+  padding: 12px 14px;
+  border-radius: 16px;
+  background: var(--panel);
+  border: 1px solid var(--border);
+}
+
+.alarm-rule-create-row-v2 select,
+.alarm-rule-create-row-v2 input {
+  width: 100%;
+  max-width: none;
+  height: 40px;
+  min-height: 40px;
+}
+
+.device-alarm-rule-list-v2 {
+  display: grid;
+  gap: 10px;
+}
+
+.device-alarm-rule-item-v2 {
+  display: grid;
+  grid-template-columns: minmax(260px, 1fr) auto auto auto;
+  gap: 12px;
+  align-items: center;
+  padding: 14px;
+  border-radius: 16px;
+  background: var(--panel);
+  border: 1px solid var(--border);
+}
+
+.alarm-rule-summary-v2 strong {
+  display: block;
+  color: var(--text);
+  font-size: 14px;
+  font-weight: 900;
+}
+
+.alarm-rule-summary-v2 span {
+  display: block;
+  margin-top: 4px;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.alarm-rule-edit-row-v2 {
+  display: grid;
+  grid-template-columns: minmax(200px, 1.2fr) 90px minmax(
+      120px,
+      0.8fr
+    ) 130px 90px auto;
+  gap: 10px;
+  align-items: center;
+  padding: 14px;
+  border-radius: 16px;
+  background: var(--panel);
+  border: 1px solid var(--border);
+}
+
+.alarm-rule-edit-row-v2 select,
+.alarm-rule-edit-row-v2 input {
+  width: 100%;
+  max-width: none;
+  height: 40px;
+  min-height: 40px;
+}
+
+.alarm-rule-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-left: 0;
+}
+
+@media (max-width: 1100px) {
+  .metric-config-table-head-v2 {
+    display: none;
+  }
+
+  .metric-config-row-v2,
+  .alarm-rule-create-row-v2,
+  .device-alarm-rule-item-v2,
+  .alarm-rule-edit-row-v2 {
+    grid-template-columns: 1fr;
+  }
+
+  .alarm-rule-actions {
+    justify-content: flex-start;
+  }
+}

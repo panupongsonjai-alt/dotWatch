@@ -1,20 +1,15 @@
-import { Plus, RotateCcw, Save, Trash2 } from 'lucide-react'
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
+import { Edit3, Plus, RotateCcw, Save, Trash2, X } from 'lucide-react'
 import { useDeviceMetrics } from '../hooks/useDeviceMetrics'
 import { createBlankMetric } from '../utils/metricDisplayConfig'
 import { METRIC_ICON_OPTIONS, MetricIcon } from '../utils/metricIcons'
 
-const DEFAULT_ALARM_DRAFT = {
-  metric: '',
-  operator: '>',
-  threshold: '',
-  severity: 'warning',
-}
+const OPERATORS = ['>', '>=', '<', '<=', '=']
+const SEVERITIES = ['warning', 'critical']
 
 function updateMetricList(metrics = [], metricIndex, key, value) {
   return metrics.map((metric, index) => {
     if (index !== metricIndex) return metric
-
     return {
       ...metric,
       [key]: value,
@@ -26,20 +21,28 @@ function reindexMetrics(metrics = []) {
   return metrics.map((metric, index) => ({
     ...metric,
     metric_key: metric.metric_key || `metric_${index + 1}`,
-    sort_order: index + 1,
+    sort_order: index,
   }))
 }
 
-function getMetricLabel(metric) {
-  if (!metric) return 'Unknown Metric'
-  return metric.unit
-    ? `${metric.metric_name} (${metric.unit})`
-    : metric.metric_name
+function formatThreshold(value, unit = '') {
+  if (value == null || value === '') return '--'
+  const numberValue = Number(value)
+  const displayValue = Number.isInteger(numberValue)
+    ? String(numberValue)
+    : numberValue.toFixed(1)
+
+  return `${displayValue}${unit ? ` ${unit}` : ''}`
 }
 
-function getRuleMetricName(metrics, metricKey) {
+function getMetricLabel(metrics, metricKey) {
   const metric = metrics.find((item) => item.metric_key === metricKey)
   return metric?.metric_name || metricKey || '--'
+}
+
+function getMetricUnit(metrics, metricKey) {
+  const metric = metrics.find((item) => item.metric_key === metricKey)
+  return metric?.unit || ''
 }
 
 export default function MetricConfigPanel({
@@ -59,17 +62,20 @@ export default function MetricConfigPanel({
     resetMetrics,
   } = useDeviceMetrics(deviceId)
 
-  const [alarmDraft, setAlarmDraft] = useState(DEFAULT_ALARM_DRAFT)
-  const [editingRuleId, setEditingRuleId] = useState(null)
-  const [editingDraft, setEditingDraft] = useState(DEFAULT_ALARM_DRAFT)
-  const [alarmSaving, setAlarmSaving] = useState(false)
+  const visibleMetrics = useMemo(
+    () => draftMetrics.filter((metric) => metric.visible !== false),
+    [draftMetrics]
+  )
 
-  const visibleMetrics = draftMetrics
-    .filter(
-      (metric) =>
-        metric.visible !== false && String(metric.metric_name || '').trim()
-    )
-    .sort((a, b) => Number(a.sort_order || 0) - Number(b.sort_order || 0))
+  const [alarmDraft, setAlarmDraft] = useState({
+    metric: '',
+    operator: '>',
+    threshold: '',
+    severity: 'warning',
+  })
+
+  const [editingRuleId, setEditingRuleId] = useState(null)
+  const [editingRule, setEditingRule] = useState(null)
 
   function addMetric() {
     setDraftMetrics((currentMetrics = []) =>
@@ -119,10 +125,10 @@ export default function MetricConfigPanel({
   }
 
   async function handleCreateAlarm() {
-    const selectedMetric = alarmDraft.metric || visibleMetrics[0]?.metric_key
+    const metricKey = alarmDraft.metric || visibleMetrics[0]?.metric_key
 
-    if (!selectedMetric) {
-      alert('กรุณาเลือก Metric')
+    if (!metricKey) {
+      alert('กรุณาเพิ่ม Metric ก่อนตั้ง Alarm')
       return
     }
 
@@ -134,91 +140,67 @@ export default function MetricConfigPanel({
       return
     }
 
-    try {
-      setAlarmSaving(true)
+    await onCreateAlarm?.(metricKey, {
+      metric: metricKey,
+      operator: alarmDraft.operator || '>',
+      threshold: Number(alarmDraft.threshold),
+      severity: alarmDraft.severity || 'warning',
+      is_active: true,
+    })
 
-      await onCreateAlarm?.(selectedMetric, {
-        metric: selectedMetric,
-        operator: alarmDraft.operator || '>',
-        threshold: Number(alarmDraft.threshold),
-        severity: alarmDraft.severity || 'warning',
-      })
-
-      setAlarmDraft(DEFAULT_ALARM_DRAFT)
-    } finally {
-      setAlarmSaving(false)
-    }
+    setAlarmDraft({
+      metric: metricKey,
+      operator: '>',
+      threshold: '',
+      severity: 'warning',
+    })
   }
 
   function startEditRule(rule) {
     setEditingRuleId(rule.id)
-    setEditingDraft({
-      metric: rule.metric || visibleMetrics[0]?.metric_key || '',
-      operator: rule.operator || '>',
+    setEditingRule({
+      ...rule,
       threshold: rule.threshold ?? '',
-      severity: rule.severity || 'warning',
-      is_active: rule.is_active,
-      device_id: rule.device_id,
+      is_active: rule.is_active !== false,
     })
   }
 
-  function cancelEditRule() {
-    setEditingRuleId(null)
-    setEditingDraft(DEFAULT_ALARM_DRAFT)
-  }
+  async function saveEditRule() {
+    if (!editingRule) return
 
-  async function handleUpdateRule(rule) {
     if (
-      editingDraft.threshold === '' ||
-      Number.isNaN(Number(editingDraft.threshold))
+      editingRule.threshold === '' ||
+      Number.isNaN(Number(editingRule.threshold))
     ) {
       alert('กรุณากรอก Threshold ให้ถูกต้อง')
       return
     }
 
-    try {
-      setAlarmSaving(true)
+    await onUpdateAlarm?.(editingRule.id, {
+      ...editingRule,
+      threshold: Number(editingRule.threshold),
+      is_active: editingRule.is_active !== false,
+    })
 
-      await onUpdateAlarm?.(rule.id, {
-        device_id: rule.device_id || deviceId,
-        metric: editingDraft.metric,
-        operator: editingDraft.operator || '>',
-        threshold: Number(editingDraft.threshold),
-        severity: editingDraft.severity || 'warning',
-        is_active: editingDraft.is_active,
-      })
-
-      cancelEditRule()
-    } finally {
-      setAlarmSaving(false)
-    }
+    setEditingRuleId(null)
+    setEditingRule(null)
   }
 
-  const isBusy = loading || saving || alarmSaving
-
   return (
-    <section className="metric-config-panel">
+    <section className="metric-config-panel metric-config-panel-v2">
       <div className="metric-config-header">
         <div>
           <h4>Metric Display</h4>
-          <p>ตั้งชื่อ หน่วย และไอคอนของค่าที่จะแสดงในทุกหน้า</p>
+          <p>
+            ตั้งชื่อ หน่วย และไอคอนของค่าที่จะแสดงใน Dashboard และ Device Detail
+          </p>
         </div>
-
-        <button
-          type="button"
-          className="ghost-button"
-          onClick={addMetric}
-          disabled={isBusy}
-        >
-          <Plus size={16} />
-          Add Metric
-        </button>
       </div>
 
       {message && <div className="metric-config-message">{message}</div>}
 
-      <div className="metric-config-table">
-        <div className="metric-config-table-head">
+      <div className="metric-config-table metric-config-table-v2">
+        <div className="metric-config-table-head metric-config-table-head-v2">
           <span>Metric Name</span>
           <span>Unit</span>
           <span>Icon</span>
@@ -228,16 +210,16 @@ export default function MetricConfigPanel({
 
         {draftMetrics.map((metric, index) => (
           <div
-            className="metric-config-row"
+            className="metric-config-row metric-config-row-v2"
             key={metric.id ? `metric-${metric.id}` : `metric-${index}`}
           >
             <input
               value={metric.metric_name || ''}
-              placeholder={`เช่น ${index === 0 ? 'CPU Temp' : 'Metric Name'}`}
+              placeholder={`เช่น ${index === 0 ? 'Supply Air' : 'Metric Name'}`}
               onChange={(event) =>
                 updateMetric(index, 'metric_name', event.target.value)
               }
-              disabled={isBusy}
+              disabled={loading || saving}
             />
 
             <input
@@ -246,7 +228,7 @@ export default function MetricConfigPanel({
               onChange={(event) =>
                 updateMetric(index, 'unit', event.target.value)
               }
-              disabled={isBusy}
+              disabled={loading || saving}
             />
 
             <select
@@ -254,7 +236,7 @@ export default function MetricConfigPanel({
               onChange={(event) =>
                 updateMetric(index, 'icon', event.target.value)
               }
-              disabled={isBusy}
+              disabled={loading || saving}
             >
               {METRIC_ICON_OPTIONS.map((icon) => (
                 <option key={icon} value={icon}>
@@ -270,7 +252,7 @@ export default function MetricConfigPanel({
                 onChange={(event) =>
                   updateMetric(index, 'visible', event.target.checked)
                 }
-                disabled={isBusy}
+                disabled={loading || saving}
               />
               Show
             </label>
@@ -279,7 +261,7 @@ export default function MetricConfigPanel({
               type="button"
               className="delete-btn square"
               onClick={() => removeMetric(index)}
-              disabled={isBusy}
+              disabled={loading || saving}
               title="Delete metric"
             >
               <Trash2 size={16} />
@@ -288,26 +270,12 @@ export default function MetricConfigPanel({
         ))}
       </div>
 
-      {visibleMetrics.length > 0 && (
-        <div className="metric-config-preview">
-          {visibleMetrics.map((metric, index) => (
-            <span
-              key={`${metric.metric_key || `metric_${index + 1}`}-${index}`}
-            >
-              <MetricIcon name={metric.icon} size={14} />
-              {metric.metric_name}
-              {metric.unit ? ` (${metric.unit})` : ''}
-            </span>
-          ))}
-        </div>
-      )}
-
       <div className="metric-config-actions">
         <button
           type="button"
           className="ghost-button"
           onClick={handleReset}
-          disabled={isBusy}
+          disabled={loading || saving}
         >
           <RotateCcw size={16} />
           Reset
@@ -317,232 +285,264 @@ export default function MetricConfigPanel({
           type="button"
           className="save-btn metric-save-btn"
           onClick={handleSave}
-          disabled={isBusy}
+          disabled={loading || saving}
         >
           <Save size={16} />
           {saving ? 'Saving...' : 'Save Display'}
         </button>
       </div>
 
-      <div className="device-alarm-rule-section">
-        <div className="device-location-header">
-          <strong>Alarm Rules</strong>
-          <span>ตั้งค่า Alarm เฉพาะ Device นี้จาก Metric จริง</span>
+      <div className="alarm-rules-panel-v2">
+        <div className="alarm-rules-header-v2">
+          <div>
+            <h4>Alarm Rules</h4>
+            <p>ตั้ง Alarm เฉพาะ Device นี้จาก Metric จริง</p>
+          </div>
         </div>
 
-        <div className="alarm-rule-create-row">
+        <div className="alarm-rule-create-row alarm-rule-create-row-v2">
           <select
             value={alarmDraft.metric || visibleMetrics[0]?.metric_key || ''}
-            disabled={isBusy || visibleMetrics.length === 0}
             onChange={(event) =>
-              setAlarmDraft((prev) => ({
-                ...prev,
+              setAlarmDraft((current) => ({
+                ...current,
                 metric: event.target.value,
               }))
             }
+            disabled={saving || visibleMetrics.length === 0}
           >
-            {visibleMetrics.length === 0 ? (
-              <option value="">No metric</option>
-            ) : (
-              visibleMetrics.map((metric) => (
-                <option key={metric.metric_key} value={metric.metric_key}>
-                  {getMetricLabel(metric)}
-                </option>
-              ))
-            )}
+            {visibleMetrics.map((metric) => (
+              <option key={metric.metric_key} value={metric.metric_key}>
+                {metric.metric_name || metric.metric_key}
+              </option>
+            ))}
           </select>
 
           <select
             value={alarmDraft.operator}
-            disabled={isBusy}
             onChange={(event) =>
-              setAlarmDraft((prev) => ({
-                ...prev,
+              setAlarmDraft((current) => ({
+                ...current,
                 operator: event.target.value,
               }))
             }
+            disabled={saving}
           >
-            <option value=">">&gt;</option>
-            <option value="<">&lt;</option>
-            <option value=">=">&gt;=</option>
-            <option value="<=">&lt;=</option>
-            <option value="=">=</option>
+            {OPERATORS.map((operator) => (
+              <option key={operator} value={operator}>
+                {operator}
+              </option>
+            ))}
           </select>
 
           <input
             type="number"
             value={alarmDraft.threshold}
-            disabled={isBusy}
             placeholder="Threshold"
             onChange={(event) =>
-              setAlarmDraft((prev) => ({
-                ...prev,
+              setAlarmDraft((current) => ({
+                ...current,
                 threshold: event.target.value,
               }))
             }
+            disabled={saving}
           />
 
           <select
             value={alarmDraft.severity}
-            disabled={isBusy}
             onChange={(event) =>
-              setAlarmDraft((prev) => ({
-                ...prev,
+              setAlarmDraft((current) => ({
+                ...current,
                 severity: event.target.value,
               }))
             }
+            disabled={saving}
           >
-            <option value="warning">Warning</option>
-            <option value="critical">Critical</option>
+            {SEVERITIES.map((severity) => (
+              <option key={severity} value={severity}>
+                {severity === 'critical' ? 'Critical' : 'Warning'}
+              </option>
+            ))}
           </select>
 
           <button
             type="button"
             className="save-btn"
-            disabled={isBusy || visibleMetrics.length === 0}
             onClick={handleCreateAlarm}
+            disabled={saving || visibleMetrics.length === 0}
           >
             Add Rule
           </button>
         </div>
 
-        <div className="device-alarm-rule-list">
-          {alarmRules.length === 0 ? (
-            <p className="alarm-rule-empty">ยังไม่มี Alarm Rule</p>
-          ) : (
-            alarmRules.map((rule) => {
+        {alarmRules.length === 0 ? (
+          <div className="alarm-rule-empty">
+            ยังไม่มี Alarm Rule สำหรับ Device นี้
+          </div>
+        ) : (
+          <div className="device-alarm-rule-list device-alarm-rule-list-v2">
+            {alarmRules.map((rule) => {
               const isEditing = editingRuleId === rule.id
+              const metricUnit = getMetricUnit(draftMetrics, rule.metric)
 
-              return (
-                <div key={rule.id} className="device-alarm-rule-item">
-                  {isEditing ? (
-                    <>
-                      <select
-                        value={editingDraft.metric}
-                        disabled={isBusy}
-                        onChange={(event) =>
-                          setEditingDraft((prev) => ({
-                            ...prev,
-                            metric: event.target.value,
-                          }))
-                        }
-                      >
-                        {visibleMetrics.map((metric) => (
-                          <option
-                            key={metric.metric_key}
-                            value={metric.metric_key}
-                          >
-                            {getMetricLabel(metric)}
-                          </option>
-                        ))}
-                      </select>
+              if (isEditing && editingRule) {
+                return (
+                  <div
+                    key={rule.id}
+                    className="device-alarm-rule-item alarm-rule-edit-row-v2"
+                  >
+                    <select
+                      value={editingRule.metric}
+                      onChange={(event) =>
+                        setEditingRule((current) => ({
+                          ...current,
+                          metric: event.target.value,
+                        }))
+                      }
+                    >
+                      {visibleMetrics.map((metric) => (
+                        <option
+                          key={metric.metric_key}
+                          value={metric.metric_key}
+                        >
+                          {metric.metric_name || metric.metric_key}
+                        </option>
+                      ))}
+                    </select>
 
-                      <select
-                        value={editingDraft.operator}
-                        disabled={isBusy}
-                        onChange={(event) =>
-                          setEditingDraft((prev) => ({
-                            ...prev,
-                            operator: event.target.value,
-                          }))
-                        }
-                      >
-                        <option value=">">&gt;</option>
-                        <option value="<">&lt;</option>
-                        <option value=">=">&gt;=</option>
-                        <option value="<=">&lt;=</option>
-                        <option value="=">=</option>
-                      </select>
+                    <select
+                      value={editingRule.operator || '>'}
+                      onChange={(event) =>
+                        setEditingRule((current) => ({
+                          ...current,
+                          operator: event.target.value,
+                        }))
+                      }
+                    >
+                      {OPERATORS.map((operator) => (
+                        <option key={operator} value={operator}>
+                          {operator}
+                        </option>
+                      ))}
+                    </select>
 
+                    <input
+                      type="number"
+                      value={editingRule.threshold}
+                      onChange={(event) =>
+                        setEditingRule((current) => ({
+                          ...current,
+                          threshold: event.target.value,
+                        }))
+                      }
+                    />
+
+                    <select
+                      value={editingRule.severity || 'warning'}
+                      onChange={(event) =>
+                        setEditingRule((current) => ({
+                          ...current,
+                          severity: event.target.value,
+                        }))
+                      }
+                    >
+                      {SEVERITIES.map((severity) => (
+                        <option key={severity} value={severity}>
+                          {severity === 'critical' ? 'Critical' : 'Warning'}
+                        </option>
+                      ))}
+                    </select>
+
+                    <label className="metric-visible-toggle">
                       <input
-                        type="number"
-                        value={editingDraft.threshold}
-                        disabled={isBusy}
+                        type="checkbox"
+                        checked={editingRule.is_active !== false}
                         onChange={(event) =>
-                          setEditingDraft((prev) => ({
-                            ...prev,
-                            threshold: event.target.value,
+                          setEditingRule((current) => ({
+                            ...current,
+                            is_active: event.target.checked,
                           }))
                         }
                       />
+                      Active
+                    </label>
 
-                      <select
-                        value={editingDraft.severity}
-                        disabled={isBusy}
-                        onChange={(event) =>
-                          setEditingDraft((prev) => ({
-                            ...prev,
-                            severity: event.target.value,
-                          }))
-                        }
-                      >
-                        <option value="warning">Warning</option>
-                        <option value="critical">Critical</option>
-                      </select>
-
+                    <div className="alarm-rule-actions">
                       <button
                         type="button"
-                        className="save-btn square"
-                        disabled={isBusy}
-                        onClick={() => handleUpdateRule(rule)}
+                        className="save-btn"
+                        onClick={saveEditRule}
                       >
-                        <Save size={16} />
+                        Save
                       </button>
-
                       <button
                         type="button"
-                        className="cancel-btn square"
-                        disabled={isBusy}
-                        onClick={cancelEditRule}
+                        className="ghost-button"
+                        onClick={() => {
+                          setEditingRuleId(null)
+                          setEditingRule(null)
+                        }}
                       >
-                        ×
+                        <X size={15} />
+                        Cancel
                       </button>
-                    </>
-                  ) : (
-                    <>
-                      <strong>
-                        {getRuleMetricName(visibleMetrics, rule.metric)}{' '}
-                        {rule.operator} {rule.threshold}
-                      </strong>
+                    </div>
+                  </div>
+                )
+              }
 
-                      <span className={`status ${rule.severity}`}>
-                        {rule.severity}
-                      </span>
+              return (
+                <div
+                  key={rule.id}
+                  className="device-alarm-rule-item device-alarm-rule-item-v2"
+                >
+                  <div className="alarm-rule-summary-v2">
+                    <strong>
+                      {getMetricLabel(draftMetrics, rule.metric)}{' '}
+                      {rule.operator}{' '}
+                      {formatThreshold(rule.threshold, metricUnit)}
+                    </strong>
+                    <span>{rule.metric}</span>
+                  </div>
 
-                      <span
-                        className={
-                          rule.is_active ? 'status online' : 'status offline'
-                        }
-                      >
-                        {rule.is_active ? 'Active' : 'Disabled'}
-                      </span>
+                  <span className={`status ${rule.severity || 'warning'}`}>
+                    {rule.severity || 'warning'}
+                  </span>
 
-                      <div className="alarm-rule-actions">
-                        <button
-                          type="button"
-                          className="rename-btn"
-                          disabled={isBusy}
-                          onClick={() => startEditRule(rule)}
-                        >
-                          Edit
-                        </button>
+                  <span
+                    className={
+                      rule.is_active !== false
+                        ? 'status online'
+                        : 'status offline'
+                    }
+                  >
+                    {rule.is_active !== false ? 'Active' : 'Disabled'}
+                  </span>
 
-                        <button
-                          type="button"
-                          className="delete-btn"
-                          disabled={isBusy}
-                          onClick={() => onDeleteAlarm?.(rule.id)}
-                        >
-                          Delete
-                        </button>
-                      </div>
-                    </>
-                  )}
+                  <div className="alarm-rule-actions">
+                    <button
+                      type="button"
+                      className="ghost-button"
+                      onClick={() => startEditRule(rule)}
+                    >
+                      <Edit3 size={15} />
+                      Edit
+                    </button>
+
+                    <button
+                      type="button"
+                      className="delete-btn"
+                      onClick={() => onDeleteAlarm?.(rule.id)}
+                    >
+                      <Trash2 size={15} />
+                      Delete
+                    </button>
+                  </div>
                 </div>
               )
-            })
-          )}
-        </div>
+            })}
+          </div>
+        )}
       </div>
     </section>
   )
