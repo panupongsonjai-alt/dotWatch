@@ -220,7 +220,6 @@ function DeviceMap({ devices = [] }) {
                         <span className={`status-text ${status}`}>
                           {status}
                         </span>
-
                       </div>
                     </Tooltip>
                   )}

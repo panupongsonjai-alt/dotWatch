@@ -431,10 +431,29 @@ function Devices() {
       />
 
       <section className="devices-ops-stat-grid">
-        <StatCard label="Total Devices" value={devices.length} hint="Registered" />
-        <StatCard label="Online" value={onlineCount} hint="Active now" tone="success" />
-        <StatCard label="Warning" value={warningCount} hint="Needs attention" tone="warning" />
-        <StatCard label="Offline" value={offlineCount} hint="No recent data" tone="danger" />
+        <StatCard
+          label="Total Devices"
+          value={devices.length}
+          hint="Registered"
+        />
+        <StatCard
+          label="Online"
+          value={onlineCount}
+          hint="Active now"
+          tone="success"
+        />
+        <StatCard
+          label="Warning"
+          value={warningCount}
+          hint="Needs attention"
+          tone="warning"
+        />
+        <StatCard
+          label="Offline"
+          value={offlineCount}
+          hint="No recent data"
+          tone="danger"
+        />
       </section>
 
       <section className="devices-v2-shell">
