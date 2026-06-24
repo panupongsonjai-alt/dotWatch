@@ -1,69 +1,69 @@
-import {
-  Activity,
-  Bell,
-  CheckCircle2,
-  CircleAlert,
-  Radio,
-  Wifi,
-  WifiOff,
-} from 'lucide-react'
 import EmptyState from './EmptyState.jsx'
+import StatusBadge from './StatusBadge.jsx'
 
 function formatActivityTime(value) {
   if (!value) return '--'
 
-  try {
-    return new Date(value).toLocaleString('th-TH', {
-      day: '2-digit',
-      month: 'short',
-      hour: '2-digit',
-      minute: '2-digit',
-      second: '2-digit',
-    })
-  } catch {
-    return '--'
-  }
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return '--'
+
+  const diffSeconds = Math.max(0, Math.floor((Date.now() - date.getTime()) / 1000))
+
+  if (diffSeconds < 10) return 'just now'
+  if (diffSeconds < 60) return `${diffSeconds}s ago`
+
+  const diffMinutes = Math.floor(diffSeconds / 60)
+  if (diffMinutes < 60) return `${diffMinutes}m ago`
+
+  const diffHours = Math.floor(diffMinutes / 60)
+  if (diffHours < 24) return `${diffHours}h ago`
+
+  return date.toLocaleString('th-TH')
 }
 
-function getActivityIcon(type, severity) {
-  if (type === 'device.online') return Wifi
-  if (type === 'device.offline') return WifiOff
-  if (type === 'alarm.triggered') return CircleAlert
-  if (type === 'alarm.acknowledged') return CheckCircle2
-  if (type === 'reading.received') return Radio
-  if (severity === 'warning' || severity === 'critical') return Bell
-  return Activity
+function getActivityIcon(activity) {
+  const type = String(activity?.activity_type || activity?.type || '').toLowerCase()
+  const severity = String(activity?.severity || '').toLowerCase()
+
+  if (type.includes('alarm')) return '🚨'
+  if (type.includes('offline') || severity === 'danger') return '🔴'
+  if (type.includes('online') || severity === 'success') return '🟢'
+  if (type.includes('reading')) return '📡'
+  if (type.includes('device')) return '📟'
+  if (type.includes('user')) return '👤'
+
+  return '•'
 }
 
-function getActivityTone(item) {
-  if (item.severity === 'critical' || item.severity === 'danger') return 'danger'
-  if (item.severity === 'warning') return 'warning'
-  if (item.severity === 'success') return 'success'
-  return 'info'
+function getActivityTone(activity) {
+  const severity = String(activity?.severity || 'info').toLowerCase()
+
+  if (severity === 'danger' || severity === 'critical') return 'critical'
+  if (severity === 'warning') return 'warning'
+  if (severity === 'success') return 'online'
+  return 'acknowledged'
 }
 
-function normalizeItems(items = []) {
-  return Array.isArray(items) ? items.filter(Boolean) : []
+function getActivityKey(activity, index) {
+  return activity?.id || `${activity?.activity_type || 'activity'}-${activity?.created_at || index}`
 }
 
 function ActivityList({
-  items,
+  activities = [],
   loading = false,
-  compact = false,
   emptyTitle = 'No activity yet',
-  emptyDescription = 'New device, alarm, and system events will appear here.',
+  emptyDescription = 'Recent system events will appear here.',
+  compact = false,
 }) {
-  const activityItems = normalizeItems(items)
-
   if (loading) {
     return (
       <div className={`dw-activity-list ${compact ? 'compact' : ''}`}>
-        {[1, 2, 3].map((item) => (
+        {[0, 1, 2].map((item) => (
           <div key={item} className="dw-activity-item loading">
             <span className="dw-activity-icon" />
             <div>
               <strong>Loading activity...</strong>
-              <p>กำลังโหลดเหตุการณ์ล่าสุด</p>
+              <p>กำลังดึงข้อมูลกิจกรรมล่าสุด</p>
             </div>
           </div>
         ))}
@@ -71,44 +71,41 @@ function ActivityList({
     )
   }
 
-  if (activityItems.length === 0) {
-    return (
-      <EmptyState
-        title={emptyTitle}
-        description={emptyDescription}
-      />
-    )
+  if (!Array.isArray(activities) || activities.length === 0) {
+    return <EmptyState title={emptyTitle} description={emptyDescription} />
   }
 
   return (
     <div className={`dw-activity-list ${compact ? 'compact' : ''}`}>
-      {activityItems.map((item) => {
-        const Icon = getActivityIcon(item.activity_type, item.severity)
-        const tone = getActivityTone(item)
+      {activities.map((activity, index) => (
+        <article key={getActivityKey(activity, index)} className="dw-activity-item">
+          <div className={`dw-activity-icon ${getActivityTone(activity)}`}>
+            {getActivityIcon(activity)}
+          </div>
 
-        return (
-          <article key={item.id || `${item.activity_type}-${item.created_at}`} className={`dw-activity-item ${tone}`}>
-            <span className="dw-activity-icon">
-              <Icon size={17} />
-            </span>
-
-            <div className="dw-activity-copy">
-              <div className="dw-activity-title-row">
-                <strong>{item.title || item.activity_type || 'Activity'}</strong>
-                <time>{formatActivityTime(item.created_at)}</time>
-              </div>
-
-              {item.description && <p>{item.description}</p>}
-
-              <div className="dw-activity-meta">
-                {item.device_name && <span>{item.device_name}</span>}
-                {item.device_code && <span>{item.device_code}</span>}
-                {item.activity_type && <span>{item.activity_type}</span>}
-              </div>
+          <div className="dw-activity-content">
+            <div className="dw-activity-title-row">
+              <strong>{activity.title || 'System activity'}</strong>
+              <time>{formatActivityTime(activity.created_at || activity.createdAt)}</time>
             </div>
-          </article>
-        )
-      })}
+
+            {(activity.description || activity.activity_type) && (
+              <p>{activity.description || activity.activity_type}</p>
+            )}
+
+            <div className="dw-activity-meta">
+              {activity.activity_type && (
+                <StatusBadge
+                  status={getActivityTone(activity)}
+                  label={activity.activity_type}
+                  size="sm"
+                />
+              )}
+              {activity.device_name && <span>{activity.device_name}</span>}
+            </div>
+          </div>
+        </article>
+      ))}
     </div>
   )
 }
