@@ -1,7 +1,6 @@
 import { auth } from './firebase'
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:4000'
-const REQUEST_TIMEOUT_MS = Number(import.meta.env.VITE_REQUEST_TIMEOUT_MS || 15000)
 
 async function getToken() {
   const user = auth.currentUser
@@ -13,70 +12,40 @@ async function getToken() {
   return user.getIdToken()
 }
 
-function createRequestTimeout() {
-  const controller = new AbortController()
-
-  const timeoutId = window.setTimeout(() => {
-    controller.abort()
-  }, REQUEST_TIMEOUT_MS)
-
-  return {
-    controller,
-    clear: () => window.clearTimeout(timeoutId),
-  }
-}
-
-async function parseResponse(response) {
-  const text = await response.text()
-
-  try {
-    return text ? JSON.parse(text) : null
-  } catch {
-    return {
-      message: text,
-    }
-  }
-}
-
 async function apiFetch(path, options = {}) {
   const token = await getToken()
-  const { controller, clear } = createRequestTimeout()
 
+  const response = await fetch(`${API_URL}${path}`, {
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${token}`,
+      ...(options.headers || {}),
+    },
+  })
+
+  const text = await response.text()
+
+  let data = null
   try {
-    const response = await fetch(`${API_URL}${path}`, {
-      ...options,
-      signal: controller.signal,
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${token}`,
-        ...(options.headers || {}),
-      },
+    data = text ? JSON.parse(text) : null
+  } catch {
+    data = { message: text }
+  }
+
+  if (!response.ok) {
+    console.error('API ERROR:', {
+      path,
+      status: response.status,
+      data,
     })
 
-    const data = await parseResponse(response)
-
-    if (!response.ok) {
-      console.error('API ERROR:', {
-        path,
-        status: response.status,
-        data,
-      })
-
-      throw new Error(
-        data?.message || data?.error || `API request failed: ${response.status}`
-      )
-    }
-
-    return data
-  } catch (error) {
-    if (error.name === 'AbortError') {
-      throw new Error('API request timeout. Please try again.')
-    }
-
-    throw error
-  } finally {
-    clear()
+    throw new Error(
+      data?.message || data?.error || `API request failed: ${response.status}`
+    )
   }
+
+  return data
 }
 
 export function getDevices() {
@@ -113,17 +82,6 @@ export function updateDeviceGroup(id, groupName) {
   })
 }
 
-export function updateDeviceLocation(id, data) {
-  return apiFetch(`/api/devices/${id}`, {
-    method: 'PUT',
-    body: JSON.stringify({
-      latitude: data.latitude,
-      longitude: data.longitude,
-      mapUrl: data.mapUrl,
-    }),
-  })
-}
-
 export function deleteDevice(id) {
   return apiFetch(`/api/devices/${id}`, {
     method: 'DELETE',
@@ -133,6 +91,17 @@ export function deleteDevice(id) {
 export function resetDeviceSecret(id) {
   return apiFetch(`/api/devices/${id}/reset-secret`, {
     method: 'POST',
+  })
+}
+
+export function updateDeviceLocation(id, data) {
+  return apiFetch(`/api/devices/${id}`, {
+    method: 'PUT',
+    body: JSON.stringify({
+      latitude: data.latitude,
+      longitude: data.longitude,
+      mapUrl: data.mapUrl,
+    }),
   })
 }
 
@@ -201,4 +170,64 @@ export function deleteAlarmRule(id) {
   return apiFetch(`/api/alarm-rules/${id}`, {
     method: 'DELETE',
   })
+}
+
+export function getDemoTemplates() {
+  return apiFetch('/api/demo/templates')
+}
+
+export function createDemoTemplate(templateKey) {
+  return apiFetch(`/api/demo/templates/${templateKey}`, {
+    method: 'POST',
+  })
+}
+
+export function deleteDemoData() {
+  return apiFetch('/api/demo/data', {
+    method: 'DELETE',
+  })
+}
+
+export function getDemoStatistics() {
+  return apiFetch('/api/demo/statistics')
+}
+
+export function getDemoGeneratorConfig() {
+  return apiFetch('/api/demo-generator')
+}
+
+export function saveDemoGeneratorConfig(data) {
+  return apiFetch('/api/demo-generator', {
+    method: 'POST',
+    body: JSON.stringify(data),
+  })
+}
+
+export function generateDemoAlarmNow() {
+  return apiFetch('/api/demo/actions/alarm-now', {
+    method: 'POST',
+  })
+}
+
+export function generateDemoOfflineNow() {
+  return apiFetch('/api/demo/actions/offline-now', {
+    method: 'POST',
+  })
+}
+
+export function generateDemoHistoryNow() {
+  return apiFetch('/api/demo/actions/history-now', {
+    method: 'POST',
+  })
+}
+
+export function getActivityLogs({ deviceId, limit } = {}) {
+  const params = new URLSearchParams()
+
+  if (deviceId) params.set('deviceId', deviceId)
+  if (limit) params.set('limit', String(limit))
+
+  const query = params.toString()
+
+  return apiFetch(`/api/activity${query ? `?${query}` : ''}`)
 }

@@ -1,7 +1,7 @@
 import { lazy, Suspense, useEffect, useMemo, useState } from 'react'
 import { auth } from '../services/firebase'
 import AlarmPanel from '../components/AlarmPanel.jsx'
-import { getDevices, getAlarms } from '../services/api'
+import { getDevices, getAlarms, getActivityLogs } from '../services/api'
 import { getDeviceMetrics } from '../services/metricDisplayApi'
 import { connectRealtime } from '../services/realtime'
 import { useAlarm } from '../context/AlarmContext'
@@ -13,7 +13,7 @@ import {
   normalizeMetrics,
 } from '../utils/metricDisplayConfig'
 import { MetricIcon } from '../utils/metricIcons.jsx'
-import { EmptyState, PageHeader, StatCard } from '../components/common'
+import { ActivityList, EmptyState, PageHeader, SectionHeader, StatCard } from '../components/common'
 
 const DeviceMap = lazy(() => import('../components/DeviceMap'))
 
@@ -71,6 +71,8 @@ function Dashboard({ onOpenDevice }) {
   const [metricConfigs, setMetricConfigs] = useState({})
   const [loading, setLoading] = useState(true)
   const [alarmCount, setAlarmCount] = useState(0)
+  const [activities, setActivities] = useState([])
+  const [activityLoading, setActivityLoading] = useState(true)
   const [dashboardDisplay, setDashboardDisplay] = useState({
     showDeviceOverview: true,
     showDeviceMap: true,
@@ -127,6 +129,19 @@ function Dashboard({ onOpenDevice }) {
     }
   }
 
+  async function loadActivity() {
+    try {
+      setActivityLoading(true)
+      const data = await getActivityLogs({ limit: 8 })
+      setActivities(Array.isArray(data) ? data : [])
+    } catch (error) {
+      console.error('Load activity error:', error)
+      setActivities([])
+    } finally {
+      setActivityLoading(false)
+    }
+  }
+
   function loadDisplaySettings() {
     setDashboardDisplay({
       showDeviceOverview:
@@ -176,6 +191,7 @@ function Dashboard({ onOpenDevice }) {
     loadDisplaySettings()
     loadDevices()
     loadAlarms()
+    loadActivity()
 
     window.addEventListener('dashboardSettingsChanged', loadDisplaySettings)
     window.addEventListener('dotwatchMetricConfigChanged', loadDevices)
@@ -211,6 +227,26 @@ function Dashboard({ onOpenDevice }) {
           const validAlarms = alarms.filter(Boolean)
           validAlarms.forEach(addAlarm)
           setAlarmCount((count) => count + validAlarms.length)
+        }
+
+        if (payload.type === 'activity') {
+          const nextActivities = Array.isArray(payload.data)
+            ? payload.data
+            : [payload.data]
+
+          setActivities((prev) => {
+            const merged = [...nextActivities.filter(Boolean), ...prev]
+            const seen = new Set()
+
+            return merged
+              .filter((item) => {
+                const key = item.id || `${item.activity_type}-${item.created_at}`
+                if (seen.has(key)) return false
+                seen.add(key)
+                return true
+              })
+              .slice(0, 8)
+          })
         }
 
         if (payload.type === 'alarm:sync') {
@@ -344,6 +380,20 @@ function Dashboard({ onOpenDevice }) {
 
         <aside className="dashboard-alarm-column">
           <AlarmPanel />
+
+          <section className="app-card dashboard-activity-card">
+            <SectionHeader
+              title="Recent Activity"
+              description="เหตุการณ์ล่าสุดจากระบบและอุปกรณ์"
+            />
+            <ActivityList
+              items={activities}
+              loading={activityLoading}
+              compact
+              emptyTitle="ยังไม่มี Activity"
+              emptyDescription="เมื่อ Device ส่งข้อมูลหรือมี Alarm รายการจะแสดงที่นี่"
+            />
+          </section>
         </aside>
       </section>
 

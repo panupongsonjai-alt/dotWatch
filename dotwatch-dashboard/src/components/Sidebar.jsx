@@ -28,6 +28,7 @@ const MENU_GROUPS = [
     items: [
       { id: 'alarms', label: 'Alarm Center', icon: ShieldAlert, badge: true },
       { id: 'notifications', label: 'Notifications', icon: Bell, badge: true },
+      { id: 'activity', label: 'Activity', icon: Activity },
     ],
   },
   {

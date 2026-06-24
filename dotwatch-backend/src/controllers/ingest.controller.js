@@ -2,6 +2,11 @@ import { z } from 'zod'
 import { pool } from '../db/pool.js'
 import { env } from '../config/env.js'
 import { checkAlarms } from '../services/alarm.service.js'
+import {
+  createAlarmActivity,
+  createDeviceStatusActivity,
+  createReadingActivity,
+} from '../services/activity.service.js'
 
 const ingestSchema = z.object({
   metrics: z.record(z.string(), z.number()).optional(),
@@ -49,6 +54,7 @@ function broadcastIngestEvent(req, userIds, payload) {
 export async function ingestReading(req, res) {
   const data = ingestSchema.parse(req.body)
   const device = req.device
+  const previousStatus = device.status
 
   if (device.last_ingest_at) {
     const diff = (Date.now() - new Date(device.last_ingest_at).getTime()) / 1000
@@ -178,6 +184,40 @@ export async function ingestReading(req, res) {
       readingPayload
     )
 
+    const activityTargets = [updatedDevice.firebase_uid, updatedDevice.user_id]
+
+    const readingActivity = await createReadingActivity({
+      userId: updatedDevice.user_id,
+      deviceId: updatedDevice.id,
+      deviceName: updatedDevice.name || updatedDevice.device_code,
+      latestMetrics,
+      createdAt: time,
+    })
+
+    if (readingActivity) {
+      broadcastIngestEvent(req, activityTargets, {
+        type: 'activity',
+        data: readingActivity,
+      })
+    }
+
+    if (previousStatus !== 'online') {
+      const statusActivity = await createDeviceStatusActivity({
+        userId: updatedDevice.user_id,
+        deviceId: updatedDevice.id,
+        deviceName: updatedDevice.name || updatedDevice.device_code,
+        status: 'online',
+        createdAt: time,
+      })
+
+      if (statusActivity) {
+        broadcastIngestEvent(req, activityTargets, {
+          type: 'activity',
+          data: statusActivity,
+        })
+      }
+    }
+
     if (sentCount === 0) {
       console.warn('Ingest realtime broadcast had no active subscribers:', {
         deviceId: updatedDevice.id,
@@ -191,6 +231,21 @@ export async function ingestReading(req, res) {
         type: 'alarm',
         data: alerts,
       })
+
+      for (const alert of alerts) {
+        const alarmActivity = await createAlarmActivity({
+          userId: updatedDevice.user_id,
+          deviceId: updatedDevice.id,
+          alarm: alert,
+        })
+
+        if (alarmActivity) {
+          broadcastIngestEvent(req, activityTargets, {
+            type: 'activity',
+            data: alarmActivity,
+          })
+        }
+      }
     }
 
     res.status(201).json({

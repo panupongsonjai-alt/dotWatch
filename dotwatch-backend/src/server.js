@@ -16,7 +16,9 @@ import { demoRouter } from './routes/demo.routes.js'
 import deviceMetricsRoutes from './routes/deviceMetricsRoutes.js'
 import deviceModelsRoutes from './routes/deviceModelsRoutes.js'
 import { adminRouter } from './routes/admin.routes.js'
+import { activityRouter } from './routes/activity.routes.js'
 import { pool } from './db/pool.js'
+import { createDeviceStatusActivity } from './services/activity.service.js'
 
 const app = express()
 const server = http.createServer(app)
@@ -312,6 +314,7 @@ app.use('/api/ingest', ingestLimiter, ingestRouter)
 app.use('/api/alarms', apiLimiter, alarmsRouter)
 app.use('/api/alarm-rules', apiLimiter, alarmRulesRouter)
 app.use('/api/admin', apiLimiter, adminRouter)
+app.use('/api/activity', apiLimiter, activityRouter)
 app.use('/api', deviceMetricsRoutes)
 app.use('/api', deviceModelsRoutes)
 
@@ -366,12 +369,26 @@ setInterval(async () => {
         AND d.last_ingest_at < now() - interval '30 seconds'
     `)
 
-    result.rows.forEach((device) => {
+    for (const device of result.rows) {
       broadcastToUser(device.firebase_uid, {
         type: 'device:update',
         data: device,
       })
-    })
+
+      const activity = await createDeviceStatusActivity({
+        userId: device.user_id,
+        deviceId: device.id,
+        deviceName: device.name || device.device_code,
+        status: 'offline',
+      })
+
+      if (activity) {
+        broadcastToUser(device.firebase_uid, {
+          type: 'activity',
+          data: activity,
+        })
+      }
+    }
   } catch (error) {
     console.error('Offline detection failed:', error.message)
   }

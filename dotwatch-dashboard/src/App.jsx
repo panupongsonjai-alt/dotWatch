@@ -1,5 +1,6 @@
-import { Suspense, lazy, useEffect, useMemo, useState } from 'react'
+import { useMemo, useState, useEffect } from 'react'
 import {
+  Activity,
   Bell,
   Command,
   Gauge,
@@ -16,22 +17,21 @@ import {
 
 import { useAuth } from './context/AuthContext'
 
+import Dashboard from './pages/Dashboard'
+import Devices from './pages/Devices'
+import History from './pages/History.jsx'
+import Settings from './pages/Settings'
 import Login from './pages/Login'
+import Profile from './pages/Profile'
+import Alarms from './pages/Alarms.jsx'
+import NotificationCenter from './pages/NotificationCenter.jsx'
+import ActivityCenter from './pages/ActivityCenter.jsx'
+import SystemHealth from './pages/SystemHealth.jsx'
 import AlarmToast from './components/AlarmToast.jsx'
+import DeviceDetail from './pages/DeviceDetail.jsx'
 import Sidebar from './components/Sidebar'
 import Navbar from './components/Navbar'
 import VerifyEmail from './pages/VerifyEmail'
-
-const Dashboard = lazy(() => import('./pages/Dashboard'))
-const Devices = lazy(() => import('./pages/Devices'))
-const History = lazy(() => import('./pages/History.jsx'))
-const Alarms = lazy(() => import('./pages/Alarms.jsx'))
-const NotificationCenter = lazy(() => import('./pages/NotificationCenter.jsx'))
-const SystemHealth = lazy(() => import('./pages/SystemHealth.jsx'))
-const DeviceDetail = lazy(() => import('./pages/DeviceDetail.jsx'))
-const Profile = lazy(() => import('./pages/Profile'))
-const Settings = lazy(() => import('./pages/Settings'))
-
 
 const PAGE_META = {
   dashboard: {
@@ -63,6 +63,12 @@ const PAGE_META = {
     title: 'Notifications',
     description: 'Review system notifications and unread operational events.',
     icon: Bell,
+  },
+  activity: {
+    section: 'Events',
+    title: 'Activity',
+    description: 'Review realtime device, alarm, and system activity logs.',
+    icon: Activity,
   },
   'system-health': {
     section: 'System',
@@ -310,6 +316,7 @@ function WorkspaceHelp({ open, onClose, onNavigate }) {
     { id: 'devices', label: 'Manage devices and metrics' },
     { id: 'history', label: 'Review telemetry history' },
     { id: 'alarms', label: 'Check active alarms' },
+    { id: 'activity', label: 'Review operations activity' },
     { id: 'system-health', label: 'Run system diagnostics' },
   ]
 
@@ -366,18 +373,6 @@ function WorkspaceHelp({ open, onClose, onNavigate }) {
           </div>
         </div>
       </section>
-    </div>
-  )
-}
-
-
-function PageFallback() {
-  return (
-    <div className="app-card">
-      <div className="app-empty-state">
-        <h3>Loading page...</h3>
-        <p>Preparing dotWatch workspace.</p>
-      </div>
     </div>
   )
 }
@@ -511,27 +506,27 @@ function App() {
           onOpenHelp={() => setWorkspaceHelpOpen(true)}
         />
 
-        <Suspense fallback={<PageFallback />}>
-          {page === 'dashboard' && <Dashboard onOpenDevice={openDeviceDetail} />}
+        {page === 'dashboard' && <Dashboard onOpenDevice={openDeviceDetail} />}
 
-          {page === 'devices' && <Devices />}
+        {page === 'devices' && <Devices />}
 
-          {page === 'history' && <History />}
+        {page === 'history' && <History />}
 
-          {page === 'alarms' && <Alarms />}
+        {page === 'alarms' && <Alarms />}
 
-          {page === 'notifications' && <NotificationCenter />}
+        {page === 'notifications' && <NotificationCenter />}
 
-          {page === 'system-health' && <SystemHealth />}
+        {page === 'activity' && <ActivityCenter />}
 
-          {page === 'device-detail' && (
-            <DeviceDetail deviceId={selectedDeviceId} onBack={backToDashboard} />
-          )}
+        {page === 'system-health' && <SystemHealth />}
 
-          {page === 'profile' && <Profile />}
+        {page === 'device-detail' && (
+          <DeviceDetail deviceId={selectedDeviceId} onBack={backToDashboard} />
+        )}
 
-          {page === 'settings' && <Settings />}
-        </Suspense>
+        {page === 'profile' && <Profile />}
+
+        {page === 'settings' && <Settings />}
 
         <CommandPalette
           open={commandPaletteOpen}
