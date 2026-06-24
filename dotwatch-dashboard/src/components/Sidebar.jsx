@@ -6,7 +6,8 @@ function Sidebar({ page, setPage, sidebarOpen, setSidebarOpen }) {
   const menus = [
     { id: 'dashboard', label: 'Dashboard', icon: '📊' },
     { id: 'devices', label: 'Devices', icon: '📡' },
-    { id: 'alarms', label: 'Alarms', icon: '🚨' },
+    { id: 'history', label: 'History', icon: '📋' },
+    { id: 'alarms', label: 'Alarm Center', icon: '🚨' },
     { id: 'profile', label: 'Profile', icon: '👤' },
     { id: 'settings', label: 'Settings', icon: '⚙️' },
   ]

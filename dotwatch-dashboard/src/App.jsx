@@ -13,6 +13,7 @@ import DeviceDetail from './pages/DeviceDetail.jsx'
 import Sidebar from './components/Sidebar'
 import Navbar from './components/Navbar'
 import VerifyEmail from './pages/VerifyEmail'
+import History from './pages/History'
 
 function App() {
   const { user, authLoading, logout } = useAuth()
@@ -83,6 +84,8 @@ function App() {
         {page === 'dashboard' && <Dashboard onOpenDevice={openDeviceDetail} />}
 
         {page === 'devices' && <Devices />}
+
+        {page === 'history' && <History />}
 
         {page === 'alarms' && <Alarms />}
 

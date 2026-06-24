@@ -1425,3 +1425,75 @@
     width: 100%;
   }
 }
+
+/* =========================================================
+   Devices Mobile + Search Polish - Phase 17
+========================================================= */
+
+.devices-v3-search-box {
+  min-height: 42px;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 0 12px;
+  border-radius: 14px;
+  background: var(--input);
+  border: 1px solid var(--border);
+  color: var(--muted);
+}
+
+.devices-v3-search-box input {
+  height: 100%;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--text);
+  box-shadow: none;
+}
+
+.devices-v3-search-box input:focus {
+  box-shadow: none;
+}
+
+@media (max-width: 760px) {
+  .devices-v2-list-card,
+  .devices-v3-list-card {
+    position: static;
+    max-height: none;
+  }
+
+  .devices-v2-shell {
+    gap: 14px;
+  }
+
+  .devices-v3-tabs {
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+
+  .devices-v3-tabs::-webkit-scrollbar {
+    display: none;
+  }
+
+  .devices-v3-tabs button {
+    flex: 0 0 auto;
+  }
+}
+
+@media (max-width: 560px) {
+  .devices-v3-item,
+  .devices-v2-item {
+    padding: 13px;
+  }
+
+  .devices-v3-item-top,
+  .devices-v2-item-head {
+    display: grid;
+    gap: 10px;
+  }
+
+  .devices-v3-item-top .status,
+  .devices-v2-item-head .status {
+    width: fit-content;
+  }
+}

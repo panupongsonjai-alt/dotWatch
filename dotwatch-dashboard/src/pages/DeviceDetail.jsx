@@ -52,6 +52,53 @@ function getReadingMetrics(reading) {
   return reading?.latest_metrics || reading?.metrics || {}
 }
 
+function normalizeAlarmPayload(payload) {
+  const rawAlarms = Array.isArray(payload?.data)
+    ? payload.data
+    : [payload?.data]
+
+  return rawAlarms.filter(Boolean)
+}
+
+function getAlarmDeviceId(alarm) {
+  return alarm?.device_id ?? alarm?.deviceId ?? alarm?.device?.id
+}
+
+function getAlarmTitle(alarm) {
+  const severity = String(alarm?.severity || 'alarm').toUpperCase()
+  const metric =
+    alarm?.metric_key || alarm?.metric || alarm?.metric_name || 'Metric'
+
+  return `${severity} alarm: ${metric}`
+}
+
+function getAlarmDescription(alarm) {
+  if (alarm?.message) return alarm.message
+
+  const operator = alarm?.operator || alarm?.condition || ''
+  const threshold = alarm?.threshold ?? alarm?.threshold_value ?? ''
+  const value = alarm?.value ?? alarm?.reading_value ?? alarm?.current_value
+  const parts = []
+
+  if (value != null) parts.push(`Current value ${formatMetricNumber(value)}`)
+  if (operator || threshold !== '')
+    parts.push(`Rule ${operator} ${threshold}`.trim())
+
+  return parts.length > 0
+    ? parts.join(' • ')
+    : 'Alarm rule was triggered for this device.'
+}
+
+function getAlarmTime(alarm) {
+  return (
+    alarm?.triggered_at ||
+    alarm?.created_at ||
+    alarm?.time ||
+    alarm?.timestamp ||
+    new Date().toISOString()
+  )
+}
+
 function mergeRealtimeDevice(prev, reading) {
   const realtimeMetrics = getReadingMetrics(reading)
 
@@ -94,7 +141,9 @@ function formatMetricNumber(value) {
   if (value == null || value === '' || Number.isNaN(Number(value))) return '--'
 
   const numberValue = Number(value)
-  return Number.isInteger(numberValue) ? String(numberValue) : numberValue.toFixed(1)
+  return Number.isInteger(numberValue)
+    ? String(numberValue)
+    : numberValue.toFixed(1)
 }
 
 function getDeviceHealthLabel(status) {
@@ -104,11 +153,157 @@ function getDeviceHealthLabel(status) {
   return 'Offline'
 }
 
+function getMetricValueFromDevice(device, metric) {
+  const latestMetrics = device?.latest_metrics || {}
+  const metricValues = device?.metrics || {}
+
+  if (latestMetrics[metric.metric_key] != null)
+    return latestMetrics[metric.metric_key]
+  if (metricValues[metric.metric_key] != null)
+    return metricValues[metric.metric_key]
+  if (device?.[metric.metric_key] != null) return device[metric.metric_key]
+
+  return null
+}
+
+function buildTimeline(device, visibleMetrics, realtimeAlarms = []) {
+  const latestMetrics = visibleMetrics
+    .map((metric) => ({
+      key: metric.metric_key,
+      name: metric.metric_name || metric.metric_key,
+      unit: metric.unit || '',
+      value: getMetricValueFromDevice(device, metric),
+    }))
+    .filter(
+      (metric) => metric.value != null && Number.isFinite(Number(metric.value))
+    )
+    .slice(0, 4)
+
+  const items = realtimeAlarms.slice(0, 5).map((alarm) => ({
+    id: `alarm-${alarm.id || alarm.alarm_id || getAlarmTime(alarm)}`,
+    tone:
+      alarm.severity === 'critical'
+        ? 'danger'
+        : alarm.severity === 'warning'
+          ? 'warning'
+          : 'danger',
+    title: getAlarmTitle(alarm),
+    description: getAlarmDescription(alarm),
+    time: getAlarmTime(alarm),
+  }))
+
+  if (device?.latest_time) {
+    items.push({
+      id: 'latest-reading',
+      tone: 'info',
+      title: 'Latest reading received',
+      description:
+        latestMetrics.length > 0
+          ? latestMetrics
+              .map(
+                (metric) =>
+                  `${metric.name}: ${formatMetricNumber(metric.value)}${metric.unit ? ` ${metric.unit}` : ''}`
+              )
+              .join(' • ')
+          : 'Device sent new telemetry data.',
+      time: device.latest_time,
+    })
+  }
+
+  if (device?.last_ingest_at) {
+    items.push({
+      id: 'last-ingest',
+      tone: device.status === 'online' ? 'success' : 'danger',
+      title:
+        device.status === 'online'
+          ? 'Data ingest is active'
+          : 'Device ingest stopped',
+      description:
+        device.status === 'online'
+          ? 'Backend received telemetry and marked this device online.'
+          : 'No new telemetry has been received within the offline threshold.',
+      time: device.last_ingest_at,
+    })
+  }
+
+  if (device?.last_seen_at) {
+    items.push({
+      id: 'last-seen',
+      tone: device.status === 'online' ? 'success' : 'warning',
+      title: `Device status: ${getStatusLabel(device.status)}`,
+      description: `Last seen at ${formatDate(device.last_seen_at)}.`,
+      time: device.last_seen_at,
+    })
+  }
+
+  items.push({
+    id: 'profile',
+    tone: 'muted',
+    title: 'Device profile loaded',
+    description: `${device?.model_name || 'Unknown model'} • ${visibleMetrics.length} visible metrics configured.`,
+    time:
+      device?.created_at ||
+      device?.last_seen_at ||
+      device?.latest_time ||
+      new Date().toISOString(),
+  })
+
+  return items.sort(
+    (a, b) => new Date(b.time).getTime() - new Date(a.time).getTime()
+  )
+}
+
+function DeviceInfoGrid({ device }) {
+  return (
+    <div className="device-info-grid-ds">
+      <div>
+        <label>Device Code</label>
+        <p>{device.device_code}</p>
+      </div>
+      <div>
+        <label>Model</label>
+        <p>{device.model_name || '--'}</p>
+      </div>
+      <div>
+        <label>Group</label>
+        <p>{device.group_name || 'Default'}</p>
+      </div>
+      <div>
+        <label>Firmware</label>
+        <p>{device.firmware_version || '--'}</p>
+      </div>
+      <div>
+        <label>Latitude</label>
+        <p>
+          {device.latitude != null ? Number(device.latitude).toFixed(6) : '--'}
+        </p>
+      </div>
+      <div>
+        <label>Longitude</label>
+        <p>
+          {device.longitude != null
+            ? Number(device.longitude).toFixed(6)
+            : '--'}
+        </p>
+      </div>
+      <div>
+        <label>Latest Reading</label>
+        <p>{formatDate(device.latest_time)}</p>
+      </div>
+      <div>
+        <label>Last Ingest</label>
+        <p>{formatDate(device.last_ingest_at)}</p>
+      </div>
+    </div>
+  )
+}
+
 function DeviceDetail({ deviceId, onBack }) {
   const [device, setDevice] = useState(null)
   const [metrics, setMetrics] = useState([])
   const [loading, setLoading] = useState(true)
-  const [showInfo, setShowInfo] = useState(true)
+  const [activeTab, setActiveTab] = useState('overview')
+  const [realtimeAlarms, setRealtimeAlarms] = useState([])
 
   async function loadDevice() {
     try {
@@ -120,6 +315,7 @@ function DeviceDetail({ deviceId, onBack }) {
       ])
 
       setDevice(deviceData)
+      setRealtimeAlarms([])
 
       const normalizedMetrics = Array.isArray(metricData)
         ? metricData
@@ -141,14 +337,7 @@ function DeviceDetail({ deviceId, onBack }) {
   }
 
   function getMetricValue(metric) {
-    const latestMetrics = device?.latest_metrics || {}
-    const metricValues = device?.metrics || {}
-
-    if (latestMetrics[metric.metric_key] != null) return latestMetrics[metric.metric_key]
-    if (metricValues[metric.metric_key] != null) return metricValues[metric.metric_key]
-    if (device?.[metric.metric_key] != null) return device[metric.metric_key]
-
-    return null
+    return getMetricValueFromDevice(device, metric)
   }
 
   useEffect(() => {
@@ -164,7 +353,34 @@ function DeviceDetail({ deviceId, onBack }) {
       if (!user) return
 
       unsubscribeRealtime = connectRealtime(user.uid, (payload) => {
-        if (payload.type !== 'reading' && payload.type !== 'device:update') return
+        if (payload.type === 'alarm') {
+          const alarms = normalizeAlarmPayload(payload).filter((alarm) => {
+            const alarmDeviceId = getAlarmDeviceId(alarm)
+            return String(alarmDeviceId) === String(deviceId)
+          })
+
+          if (alarms.length > 0) {
+            setRealtimeAlarms((prev) => {
+              const next = [...alarms, ...prev]
+              const unique = new Map()
+
+              next.forEach((alarm) => {
+                const key =
+                  alarm.id ||
+                  alarm.alarm_id ||
+                  `${getAlarmDeviceId(alarm)}-${getAlarmTime(alarm)}-${alarm.metric_key || alarm.metric || ''}`
+                if (!unique.has(key)) unique.set(key, alarm)
+              })
+
+              return Array.from(unique.values()).slice(0, 10)
+            })
+          }
+
+          return
+        }
+
+        if (payload.type !== 'reading' && payload.type !== 'device:update')
+          return
 
         const reading = payload.data || payload.device
         if (!reading) return
@@ -198,10 +414,24 @@ function DeviceDetail({ deviceId, onBack }) {
     }
   }, [visibleMetrics, device])
 
+  const timeline = useMemo(() => {
+    return buildTimeline(device, visibleMetrics, realtimeAlarms)
+  }, [device, visibleMetrics, realtimeAlarms])
+
+  const tabs = [
+    { id: 'overview', label: 'Overview', count: null },
+    { id: 'metrics', label: 'Metrics', count: metricSummary.total },
+    { id: 'timeline', label: 'Timeline', count: timeline.length },
+    { id: 'information', label: 'Information', count: null },
+  ]
+
   if (loading) {
     return (
       <div className="page app-page device-detail-page device-detail-ds">
-        <EmptyState title="กำลังโหลด Device" description="กำลังดึงข้อมูลล่าสุดจาก Backend" />
+        <EmptyState
+          title="กำลังโหลด Device"
+          description="กำลังดึงข้อมูลล่าสุดจาก Backend"
+        />
       </div>
     )
   }
@@ -223,7 +453,7 @@ function DeviceDetail({ deviceId, onBack }) {
   }
 
   return (
-    <div className="page app-page device-detail-page device-detail-ds">
+    <div className="page app-page device-detail-page device-detail-ds device-detail-tabs-v2">
       <PageHeader
         eyebrow="Device Detail"
         title={device.name || 'Unnamed Device'}
@@ -232,7 +462,9 @@ function DeviceDetail({ deviceId, onBack }) {
           <div className="device-detail-header-meta">
             <span>Latest Reading: {formatShortTime(device.latest_time)}</span>
             <span>Last Seen: {formatShortTime(device.last_seen_at)}</span>
-            <span>{metricSummary.active}/{metricSummary.total} Active Metrics</span>
+            <span>
+              {metricSummary.active}/{metricSummary.total} Active Metrics
+            </span>
           </div>
         }
         actions={
@@ -253,99 +485,160 @@ function DeviceDetail({ deviceId, onBack }) {
           label="Status"
           value={getDeviceHealthLabel(device.status)}
           hint={device.status || 'offline'}
-          tone={device.status === 'online' ? 'success' : device.status === 'warning' ? 'warning' : 'danger'}
-        />
-        <StatCard label="Model" value={device.model_name || '--'} hint="Device model" />
-        <StatCard label="Metrics" value={metricSummary.total} hint={`${metricSummary.active} active`} />
-        <StatCard label="Firmware" value={device.firmware_version || '--'} hint="Current version" />
-      </section>
-
-      <section className="panel app-card device-live-panel-ds">
-        <SectionHeader
-          title="Live Metrics"
-          description="ค่าล่าสุดจาก Device ตาม Metric Config"
-          actions={
-            <span className="device-live-count-ds">
-              {metricSummary.active} active • {metricSummary.empty} empty
-            </span>
+          tone={
+            device.status === 'online'
+              ? 'success'
+              : device.status === 'warning'
+                ? 'warning'
+                : 'danger'
           }
         />
+        <StatCard
+          label="Model"
+          value={device.model_name || '--'}
+          hint="Device model"
+        />
+        <StatCard
+          label="Metrics"
+          value={metricSummary.total}
+          hint={`${metricSummary.active} active`}
+        />
+        <StatCard
+          label="Realtime Alarms"
+          value={realtimeAlarms.length}
+          hint="Current session"
+          tone={realtimeAlarms.length > 0 ? 'danger' : 'success'}
+        />
+        <StatCard
+          label="Firmware"
+          value={device.firmware_version || '--'}
+          hint="Current version"
+        />
+      </section>
 
-        {visibleMetrics.length === 0 ? (
-          <EmptyState
-            title="ยังไม่มี Metric"
-            description="ไปที่หน้า Device เพื่อกำหนด Metric Display ก่อน"
+      <nav className="device-detail-tabs" aria-label="Device detail sections">
+        {tabs.map((tab) => (
+          <button
+            key={tab.id}
+            type="button"
+            className={activeTab === tab.id ? 'active' : ''}
+            onClick={() => setActiveTab(tab.id)}
+          >
+            <span>{tab.label}</span>
+            {tab.count != null && <b>{tab.count}</b>}
+          </button>
+        ))}
+      </nav>
+
+      {activeTab === 'overview' && (
+        <div className="device-detail-tab-panel">
+          <section
+            className={`device-health-banner-ds ${device.status || 'offline'}`}
+          >
+            <div className="device-health-dot-ds" />
+            <div>
+              <strong>{getDeviceHealthLabel(device.status)}</strong>
+              <p>
+                {device.status === 'online'
+                  ? 'Device is sending telemetry normally.'
+                  : 'No fresh telemetry has been received from this device.'}
+              </p>
+            </div>
+            <span>Last ingest: {formatShortTime(device.last_ingest_at)}</span>
+          </section>
+
+          <section className="panel app-card device-overview-grid-card-ds">
+            <SectionHeader
+              title="Overview"
+              description="ภาพรวมสถานะและข้อมูลล่าสุดของ Device นี้"
+            />
+            <DeviceInfoGrid device={device} />
+          </section>
+
+          <ChartWidget defaultDeviceId={deviceId} />
+        </div>
+      )}
+
+      {activeTab === 'metrics' && (
+        <section className="panel app-card device-live-panel-ds device-detail-tab-panel">
+          <SectionHeader
+            title="Live Metrics"
+            description="ค่าล่าสุดจาก Device ตาม Metric Config"
+            actions={
+              <span className="device-live-count-ds">
+                {metricSummary.active} active • {metricSummary.empty} empty
+              </span>
+            }
           />
-        ) : (
-          <div className="device-metrics-ds-grid">
-            {visibleMetrics.map((metric) => {
-              const value = getMetricValue(metric)
 
-              return (
-                <MetricCard
-                  key={metric.metric_key}
-                  name={metric.metric_name || metric.metric_key}
-                  value={formatMetricNumber(value)}
-                  unit={metric.unit}
-                  icon={getMetricIcon(metric)}
-                  metricKey={metric.metric_key}
-                />
-              )
-            })}
+          {visibleMetrics.length === 0 ? (
+            <EmptyState
+              title="ยังไม่มี Metric"
+              description="ไปที่หน้า Device เพื่อกำหนด Metric Display ก่อน"
+            />
+          ) : (
+            <div className="device-metrics-ds-grid">
+              {visibleMetrics.map((metric) => {
+                const value = getMetricValue(metric)
+
+                return (
+                  <MetricCard
+                    key={metric.metric_key}
+                    name={metric.metric_name || metric.metric_key}
+                    value={formatMetricNumber(value)}
+                    unit={metric.unit}
+                    icon={getMetricIcon(metric)}
+                    metricKey={metric.metric_key}
+                  />
+                )
+              })}
+            </div>
+          )}
+        </section>
+      )}
+
+      {activeTab === 'timeline' && (
+        <section className="panel app-card device-timeline-panel-ds device-detail-tab-panel">
+          <SectionHeader
+            title="Device Timeline"
+            description="เหตุการณ์ล่าสุดที่เกี่ยวข้องกับ Device นี้"
+            actions={
+              <span className="device-live-count-ds">
+                {timeline.length} events
+              </span>
+            }
+          />
+
+          <div className="device-timeline-list-ds">
+            {timeline.map((item) => (
+              <article
+                key={item.id}
+                className={`device-timeline-item-ds ${item.tone}`}
+              >
+                <div className="device-timeline-dot-ds" />
+                <div className="device-timeline-content-ds">
+                  <div className="device-timeline-title-row-ds">
+                    <h3>{item.title}</h3>
+                    <time>{formatShortTime(item.time)}</time>
+                  </div>
+                  <p>{item.description}</p>
+                  <small>{formatDate(item.time)}</small>
+                </div>
+              </article>
+            ))}
           </div>
-        )}
-      </section>
+        </section>
+      )}
 
-      <ChartWidget defaultDeviceId={deviceId} />
-
-      <section className="panel app-card device-info-panel-ds">
-        <SectionHeader
-          title="Device Information"
-          description="รายละเอียดอุปกรณ์และตำแหน่งติดตั้ง"
-          actions={
-            <button className="secondary-button" onClick={() => setShowInfo((prev) => !prev)}>
-              {showInfo ? 'Hide' : 'Show'} Info
-            </button>
-          }
-        />
-
-        {showInfo ? (
-          <div className="device-info-grid-ds">
-            <div>
-              <label>Device Code</label>
-              <p>{device.device_code}</p>
-            </div>
-            <div>
-              <label>Model</label>
-              <p>{device.model_name || '--'}</p>
-            </div>
-            <div>
-              <label>Group</label>
-              <p>{device.group_name || 'Default'}</p>
-            </div>
-            <div>
-              <label>Firmware</label>
-              <p>{device.firmware_version || '--'}</p>
-            </div>
-            <div>
-              <label>Latitude</label>
-              <p>{device.latitude != null ? Number(device.latitude).toFixed(6) : '--'}</p>
-            </div>
-            <div>
-              <label>Longitude</label>
-              <p>{device.longitude != null ? Number(device.longitude).toFixed(6) : '--'}</p>
-            </div>
-            <div>
-              <label>Latest Reading</label>
-              <p>{formatDate(device.latest_time)}</p>
-            </div>
-            <div>
-              <label>Last Ingest</label>
-              <p>{formatDate(device.last_ingest_at)}</p>
-            </div>
-          </div>
-        ) : null}
-      </section>
+      {activeTab === 'information' && (
+        <section className="panel app-card device-info-panel-ds device-detail-tab-panel">
+          <SectionHeader
+            title="Device Information"
+            description="รายละเอียดอุปกรณ์และตำแหน่งติดตั้ง"
+          />
+          <DeviceInfoGrid device={device} />
+        </section>
+      )}
     </div>
   )
 }

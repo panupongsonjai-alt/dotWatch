@@ -375,3 +375,54 @@
     font-size: 34px;
   }
 }
+
+/* =========================================================
+   UX Polish Pack - Phase 17
+========================================================= */
+
+.dw-stat-card.compact {
+  min-height: 78px;
+  padding: 14px 16px;
+  border-radius: 16px;
+}
+
+.dw-stat-card.compact strong {
+  margin-top: 6px;
+  font-size: 25px;
+}
+
+.dw-stat-card.compact small {
+  margin-top: 6px;
+}
+
+.dw-mobile-only {
+  display: none !important;
+}
+
+@media (max-width: 640px) {
+  .dw-desktop-only {
+    display: none !important;
+  }
+
+  .dw-mobile-only {
+    display: grid !important;
+  }
+
+  .dw-page-header {
+    padding: 18px;
+    border-radius: 22px;
+  }
+
+  .dw-page-header-main h1 {
+    font-size: 24px;
+  }
+
+  .dw-stat-card {
+    min-height: 82px;
+    padding: 15px;
+  }
+
+  .dw-stat-card strong {
+    font-size: 26px;
+  }
+}

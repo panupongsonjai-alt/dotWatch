@@ -1,10 +1,11 @@
-import { Plus } from 'lucide-react'
-import { EmptyState, SectionHeader, StatusBadge } from '../common'
+import { useMemo, useState } from 'react'
+import { Plus, Search } from 'lucide-react'
 import {
   getDeviceDisplayName,
   getLastSeen,
   getModelLabel,
   getStatus,
+  getStatusIcon,
   getStatusLabel,
 } from './deviceUtils.jsx'
 
@@ -16,37 +17,54 @@ function DeviceList({
   onCreate,
   onSelect,
 }) {
+  const [searchText, setSearchText] = useState('')
+
+  const filteredDevices = useMemo(() => {
+    const keyword = searchText.trim().toLowerCase()
+    if (!keyword) return devices
+
+    return devices.filter((device) => {
+      const values = [
+        getDeviceDisplayName(device),
+        device.device_code,
+        device.model_name,
+        device.group_name,
+        getStatus(device),
+      ]
+
+      return values.filter(Boolean).join(' ').toLowerCase().includes(keyword)
+    })
+  }, [devices, searchText])
+
   function renderList() {
     if (loading) {
       return (
-        <EmptyState
-          title="กำลังโหลด"
-          description="กำลังดึงข้อมูล Device จาก Backend"
-        />
+        <div className="app-empty-state compact-empty-state">
+          <h3>กำลังโหลด</h3>
+          <p>กำลังดึงข้อมูล Device</p>
+        </div>
       )
     }
 
     if (!devices.length) {
       return (
-        <EmptyState
-          title="ยังไม่มี Device"
-          description="กด Create Device เพื่อเริ่มต้นเพิ่มอุปกรณ์ตัวแรก"
-          action={
-            <button
-              type="button"
-              className="primary-button"
-              onClick={onCreate}
-              disabled={saving}
-            >
-              <Plus size={18} />
-              Create Device
-            </button>
-          }
-        />
+        <div className="app-empty-state compact-empty-state">
+          <h3>ยังไม่มี Device</h3>
+          <p>กด Create เพื่อเริ่มต้น</p>
+        </div>
       )
     }
 
-    return devices.map((device) => {
+    if (!filteredDevices.length) {
+      return (
+        <div className="app-empty-state compact-empty-state">
+          <h3>ไม่พบ Device</h3>
+          <p>ลองเปลี่ยนคำค้นหาใหม่อีกครั้ง</p>
+        </div>
+      )
+    }
+
+    return filteredDevices.map((device) => {
       const status = getStatus(device)
       const active = String(selectedDevice?.id) === String(device.id)
 
@@ -54,29 +72,29 @@ function DeviceList({
         <button
           type="button"
           key={device.id}
-          className={`devices-v3-item ${active ? 'active' : ''}`}
+          className={`devices-v2-item devices-v3-item ${active ? 'active' : ''}`}
           onClick={() => onSelect(device.id)}
         >
-          <div className="devices-v3-item-top">
-            <StatusBadge
-              status={status}
-              label={getStatusLabel(status)}
-              size="sm"
-            />
+          <div className="devices-v2-item-head devices-v3-item-top">
+            <div>
+              <div className="devices-v2-item-name devices-v3-item-name">
+                {getDeviceDisplayName(device)}
+              </div>
 
-            <span className="device-model-badge">{getModelLabel(device)}</span>
-          </div>
-
-          <div>
-            <div className="devices-v3-item-name">
-              {getDeviceDisplayName(device)}
+              <div className="devices-v2-item-code devices-v3-item-code">
+                {device.device_code}
+              </div>
             </div>
-            <div className="devices-v3-item-code">{device.device_code}</div>
+
+            <span className={`status ${status}`}>
+              {getStatusIcon(status)}
+              {getStatusLabel(status)}
+            </span>
           </div>
 
-          <div className="devices-v3-item-footer">
-            <span>Last update</span>
-            <strong>{getLastSeen(device)}</strong>
+          <div className="devices-v2-item-foot devices-v3-item-footer">
+            <span className="device-model-badge">{getModelLabel(device)}</span>
+            <small>{getLastSeen(device)}</small>
           </div>
         </button>
       )
@@ -86,10 +104,13 @@ function DeviceList({
   return (
     <aside className="devices-v2-list">
       <div className="app-card devices-v2-list-card devices-v3-list-card">
-        <SectionHeader
-          title="Devices"
-          description={`${devices.length} devices registered`}
-          actions={
+        <div className="app-section-title devices-v2-list-title">
+          <div>
+            <h3>Devices</h3>
+            <p>{devices.length} devices registered</p>
+          </div>
+
+          <div className="device-v2-header-actions">
             <button
               type="button"
               className="primary-button devices-v3-create-btn"
@@ -97,10 +118,19 @@ function DeviceList({
               disabled={saving}
             >
               <Plus size={18} />
-              Create
+              Create Device
             </button>
-          }
-        />
+          </div>
+        </div>
+
+        <div className="devices-v3-search-box">
+          <Search size={16} />
+          <input
+            value={searchText}
+            onChange={(event) => setSearchText(event.target.value)}
+            placeholder="Search device..."
+          />
+        </div>
 
         <div className="devices-v2-list-scroll devices-v3-list-scroll">
           {renderList()}
