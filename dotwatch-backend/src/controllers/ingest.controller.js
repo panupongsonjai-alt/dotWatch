@@ -1,7 +1,6 @@
 import { z } from 'zod'
 import { pool } from '../db/pool.js'
 import { env } from '../config/env.js'
-import { broadcastToUser } from '../server.js'
 import { checkAlarms } from '../services/alarm.service.js'
 
 const ingestSchema = z.object({
@@ -33,6 +32,18 @@ function normalizeFiniteMetrics(metrics) {
   return Object.entries(metrics)
     .filter(([, value]) => typeof value === 'number' && Number.isFinite(value))
     .map(([metricKey, value]) => [metricKey, value])
+}
+
+function broadcastIngestEvent(req, userIds, payload) {
+  const broadcastToUser = req.app.get('broadcastToUser')
+
+  if (typeof broadcastToUser !== 'function') return 0
+
+  const targets = [...new Set(userIds.filter(Boolean).map(String))]
+
+  return targets.reduce((total, userId) => {
+    return total + broadcastToUser(userId, payload)
+  }, 0)
 }
 
 export async function ingestReading(req, res) {
@@ -124,7 +135,6 @@ export async function ingestReading(req, res) {
     await client.query('COMMIT')
 
     const updatedDevice = deviceResult.rows[0]
-
     const latestMetrics = Object.fromEntries(values)
 
     const alerts = await checkAlarms({
@@ -136,9 +146,7 @@ export async function ingestReading(req, res) {
       },
     })
 
-    console.log('Broadcast UID:', updatedDevice.firebase_uid)
-
-    broadcastToUser(updatedDevice.firebase_uid, {
+    const readingPayload = {
       type: 'reading',
       data: {
         id: updatedDevice.id,
@@ -162,10 +170,24 @@ export async function ingestReading(req, res) {
         latest_metrics: latestMetrics,
         metrics: latestMetrics,
       },
-    })
+    }
+
+    const sentCount = broadcastIngestEvent(
+      req,
+      [updatedDevice.firebase_uid, updatedDevice.user_id],
+      readingPayload
+    )
+
+    if (sentCount === 0) {
+      console.warn('Ingest realtime broadcast had no active subscribers:', {
+        deviceId: updatedDevice.id,
+        deviceCode: updatedDevice.device_code,
+        firebaseUid: updatedDevice.firebase_uid,
+      })
+    }
 
     if (alerts.length > 0) {
-      broadcastToUser(updatedDevice.firebase_uid, {
+      broadcastIngestEvent(req, [updatedDevice.firebase_uid, updatedDevice.user_id], {
         type: 'alarm',
         data: alerts,
       })

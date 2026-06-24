@@ -62,7 +62,7 @@ wss.on('connection', (ws, req) => {
   const ip =
     req.headers['x-forwarded-for'] || req.socket?.remoteAddress || 'unknown'
 
-  console.log('Dashboard connected via WebSocket:', ip)
+  console.log('WS connected:', ip)
 
   ws.isAlive = true
 
@@ -140,33 +140,13 @@ wss.on('connection', (ws, req) => {
 })
 
 export function broadcastToUser(userId, payload) {
-  if (!userId) {
-    console.warn('Broadcast skipped: missing userId', {
-      type: payload?.type,
-    })
-    return 0
-  }
+  if (!userId) return 0
 
   const targetUserId = String(userId)
   let sentCount = 0
   let matchedCount = 0
 
-  console.log('Broadcast attempt:', {
-    userId: targetUserId,
-    type: payload?.type,
-    connectedClients: clients.size,
-  })
-
   for (const [ws, clientUserId] of clients.entries()) {
-    const socketState = getSocketStateLabel(ws)
-
-    console.log('Broadcast client check:', {
-      targetUserId,
-      clientUserId,
-      socketState,
-      payloadType: payload?.type,
-    })
-
     if (clientUserId !== targetUserId) continue
 
     matchedCount += 1
@@ -174,27 +154,22 @@ export function broadcastToUser(userId, payload) {
     if (ws.readyState === ws.OPEN) {
       ws.send(JSON.stringify(payload))
       sentCount += 1
-
-      console.log('Broadcast sent:', {
-        userId: targetUserId,
-        type: payload?.type,
-      })
     }
   }
 
-  if (matchedCount === 0) {
-    console.warn('Broadcast no subscribed client matched:', {
+  if (matchedCount > 0 && sentCount > 0) {
+    console.log('WS broadcast sent:', {
       userId: targetUserId,
       type: payload?.type,
-      connectedClients: clients.size,
+      sentCount,
     })
   }
 
-  if (matchedCount > 0 && sentCount === 0) {
-    console.warn('Broadcast matched client but socket not open:', {
+  if (matchedCount === 0 && payload?.type !== 'device:update') {
+    console.warn('WS broadcast skipped: no matching subscriber', {
       userId: targetUserId,
       type: payload?.type,
-      matchedCount,
+      connectedClients: clients.size,
     })
   }
 
@@ -210,11 +185,6 @@ export function broadcastToAll(payload) {
       ws.send(message)
       sentCount += 1
     }
-  })
-
-  console.log('Broadcast all:', {
-    type: payload?.type,
-    sentCount,
   })
 
   return sentCount
