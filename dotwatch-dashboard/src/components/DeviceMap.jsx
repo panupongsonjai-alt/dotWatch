@@ -221,19 +221,6 @@ function DeviceMap({ devices = [] }) {
                           {status}
                         </span>
 
-                        <span>
-                          Temp:{' '}
-                          {device.temperature != null
-                            ? `${Number(device.temperature).toFixed(1)}°C`
-                            : '--'}
-                        </span>
-
-                        <span>
-                          Humidity:{' '}
-                          {device.humidity != null
-                            ? `${Number(device.humidity).toFixed(1)}%`
-                            : '--'}
-                        </span>
                       </div>
                     </Tooltip>
                   )}

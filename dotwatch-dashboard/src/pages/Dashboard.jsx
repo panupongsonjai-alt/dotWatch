@@ -1,19 +1,10 @@
 import { lazy, Suspense, useEffect, useMemo, useState } from 'react'
 import { auth } from '../services/firebase'
 import AlarmPanel from '../components/AlarmPanel.jsx'
-import { getDevices, getAlarms, getActivityLogs } from '../services/api'
-import { getDeviceMetrics } from '../services/metricDisplayApi'
+import { getDevices, getAlarms } from '../services/api'
 import { connectRealtime } from '../services/realtime'
 import { useAlarm } from '../context/AlarmContext'
-import {
-  DEFAULT_METRICS,
-  formatMetricValue,
-  getMetricValue,
-  getVisibleMetrics,
-  normalizeMetrics,
-} from '../utils/metricDisplayConfig'
-import { MetricIcon } from '../utils/metricIcons.jsx'
-import { ActivityList, EmptyState, PageHeader, SectionHeader, StatCard } from '../components/common'
+import { EmptyState, PageHeader, StatCard } from '../components/common'
 
 const DeviceMap = lazy(() => import('../components/DeviceMap'))
 
@@ -68,35 +59,14 @@ function formatRelativeTime(value) {
 
 function Dashboard({ onOpenDevice }) {
   const [devices, setDevices] = useState([])
-  const [metricConfigs, setMetricConfigs] = useState({})
   const [loading, setLoading] = useState(true)
   const [alarmCount, setAlarmCount] = useState(0)
-  const [activities, setActivities] = useState([])
-  const [activityLoading, setActivityLoading] = useState(true)
   const [dashboardDisplay, setDashboardDisplay] = useState({
     showDeviceOverview: true,
     showDeviceMap: true,
   })
 
   const { addAlarm } = useAlarm()
-
-  async function loadDeviceMetrics(devicesList = []) {
-    const entries = await Promise.all(
-      devicesList.map(async (device) => {
-        try {
-          const data = await getDeviceMetrics(device.id)
-          const metrics = normalizeMetrics(data?.metrics || data || [])
-
-          return [device.id, metrics.length > 0 ? metrics : DEFAULT_METRICS]
-        } catch (error) {
-          console.error(`Load metrics error for device ${device.id}:`, error)
-          return [device.id, DEFAULT_METRICS]
-        }
-      })
-    )
-
-    setMetricConfigs(Object.fromEntries(entries))
-  }
 
   async function loadDevices() {
     try {
@@ -106,11 +76,9 @@ function Dashboard({ onOpenDevice }) {
       const nextDevices = Array.isArray(data) ? data : []
 
       setDevices(nextDevices)
-      loadDeviceMetrics(nextDevices)
     } catch (error) {
       console.error('Load devices error:', error)
       setDevices([])
-      setMetricConfigs({})
     } finally {
       setLoading(false)
     }
@@ -129,34 +97,12 @@ function Dashboard({ onOpenDevice }) {
     }
   }
 
-  async function loadActivity() {
-    try {
-      setActivityLoading(true)
-      const data = await getActivityLogs({ limit: 8 })
-      setActivities(Array.isArray(data) ? data : [])
-    } catch (error) {
-      console.error('Load activity error:', error)
-      setActivities([])
-    } finally {
-      setActivityLoading(false)
-    }
-  }
-
   function loadDisplaySettings() {
     setDashboardDisplay({
       showDeviceOverview:
         localStorage.getItem('showDeviceOverview') !== 'false',
       showDeviceMap: localStorage.getItem('showDeviceMap') !== 'false',
     })
-  }
-
-  function getDeviceVisibleMetrics(device) {
-    const metrics = metricConfigs[device.id] || DEFAULT_METRICS
-    return getVisibleMetrics(metrics).slice(0, 3)
-  }
-
-  function getDisplayValue(device, metric) {
-    return formatMetricValue(getMetricValue(device, metric), metric.unit)
   }
 
   function updateRealtimeDevice(reading) {
@@ -166,7 +112,6 @@ function Dashboard({ onOpenDevice }) {
       const exists = prev.some((device) => isSameDevice(device, realtimeDevice))
 
       if (!exists) {
-        loadDeviceMetrics([realtimeDevice])
         return [realtimeDevice, ...prev]
       }
 
@@ -191,10 +136,8 @@ function Dashboard({ onOpenDevice }) {
     loadDisplaySettings()
     loadDevices()
     loadAlarms()
-    loadActivity()
 
     window.addEventListener('dashboardSettingsChanged', loadDisplaySettings)
-    window.addEventListener('dotwatchMetricConfigChanged', loadDevices)
 
     let unsubscribeRealtime = null
 
@@ -229,26 +172,6 @@ function Dashboard({ onOpenDevice }) {
           setAlarmCount((count) => count + validAlarms.length)
         }
 
-        if (payload.type === 'activity') {
-          const nextActivities = Array.isArray(payload.data)
-            ? payload.data
-            : [payload.data]
-
-          setActivities((prev) => {
-            const merged = [...nextActivities.filter(Boolean), ...prev]
-            const seen = new Set()
-
-            return merged
-              .filter((item) => {
-                const key = item.id || `${item.activity_type}-${item.created_at}`
-                if (seen.has(key)) return false
-                seen.add(key)
-                return true
-              })
-              .slice(0, 8)
-          })
-        }
-
         if (payload.type === 'alarm:sync') {
           const alarms = Array.isArray(payload.data) ? payload.data : []
           setAlarmCount(
@@ -265,7 +188,6 @@ function Dashboard({ onOpenDevice }) {
         'dashboardSettingsChanged',
         loadDisplaySettings
       )
-      window.removeEventListener('dotwatchMetricConfigChanged', loadDevices)
     }
   }, [addAlarm])
 
@@ -313,7 +235,7 @@ function Dashboard({ onOpenDevice }) {
             <div className="app-section-title dashboard-section-title-row">
               <div>
                 <h2>Devices Overview</h2>
-                <p>ค่าล่าสุดจากอุปกรณ์ทั้งหมดตาม Metric Config</p>
+                <p>ภาพรวมสถานะอุปกรณ์ทั้งหมด</p>
               </div>
 
               <span className="device-count-badge">
@@ -356,17 +278,6 @@ function Dashboard({ onOpenDevice }) {
                       {device.name || device.device_code || 'Unnamed Device'}
                     </div>
 
-                    <div className="overview-values dynamic-overview-values dashboard-device-values">
-                      {getDeviceVisibleMetrics(device).map((metric) => (
-                        <span
-                          key={metric.id || metric.metric_key}
-                          title={metric.metric_name}
-                        >
-                          <MetricIcon name={metric.icon} size={14} />
-                          <b>{getDisplayValue(device, metric)}</b>
-                        </span>
-                      ))}
-                    </div>
 
                     <div className="overview-last-update">
                       Updated {formatRelativeTime(device.latest_time || device.last_ingest_at)}
@@ -380,20 +291,6 @@ function Dashboard({ onOpenDevice }) {
 
         <aside className="dashboard-alarm-column">
           <AlarmPanel />
-
-          <section className="app-card dashboard-activity-card">
-            <SectionHeader
-              title="Recent Activity"
-              description="เหตุการณ์ล่าสุดจากระบบและอุปกรณ์"
-            />
-            <ActivityList
-              items={activities}
-              loading={activityLoading}
-              compact
-              emptyTitle="ยังไม่มี Activity"
-              emptyDescription="เมื่อ Device ส่งข้อมูลหรือมี Alarm รายการจะแสดงที่นี่"
-            />
-          </section>
         </aside>
       </section>
 
