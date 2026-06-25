@@ -1,7 +1,8 @@
 import { lazy, Suspense, useEffect, useMemo, useState } from 'react'
 import { auth } from '../services/firebase'
 import AlarmPanel from '../components/AlarmPanel.jsx'
-import { getDevices, getAlarms } from '../services/api'
+import LatestActiveAlarms from '../components/LatestActiveAlarms.jsx'
+import { getDevices, getActiveAlarms, getAlarmSummary } from '../services/api'
 import { connectRealtime } from '../services/realtime'
 import { useAlarm } from '../context/AlarmContext'
 import { EmptyState, PageHeader, StatCard } from '../components/common'
@@ -57,10 +58,27 @@ function formatRelativeTime(value) {
   return new Date(value).toLocaleDateString('th-TH')
 }
 
+
+function getHealthStatus(device = {}) {
+  if (device.health_status) return device.health_status
+
+  const status = device.status || 'offline'
+
+  if (status === 'online') return 'healthy'
+  if (status === 'warning') return 'warning'
+
+  return 'offline'
+}
+
 function Dashboard({ onOpenDevice }) {
   const [devices, setDevices] = useState([])
   const [loading, setLoading] = useState(true)
   const [alarmCount, setAlarmCount] = useState(0)
+  const [alarmSummary, setAlarmSummary] = useState({
+    active: 0,
+    warning: 0,
+    critical: 0,
+  })
   const [dashboardDisplay, setDashboardDisplay] = useState({
     showDeviceOverview: true,
     showDeviceMap: true,
@@ -86,14 +104,25 @@ function Dashboard({ onOpenDevice }) {
 
   async function loadAlarms() {
     try {
-      const data = await getAlarms()
-      const activeCount = Array.isArray(data)
-        ? data.filter((alarm) => alarm.status === 'active').length
-        : 0
+      const [activeAlarms, summary] = await Promise.all([
+        getActiveAlarms(),
+        getAlarmSummary(),
+      ])
 
-      setAlarmCount(activeCount)
+      setAlarmCount(Array.isArray(activeAlarms) ? activeAlarms.length : 0)
+      setAlarmSummary({
+        active: Number(summary?.active || 0),
+        warning: Number(summary?.warning || 0),
+        critical: Number(summary?.critical || 0),
+      })
     } catch (error) {
       console.error('Load alarms error:', error)
+      setAlarmCount(0)
+      setAlarmSummary({
+        active: 0,
+        warning: 0,
+        critical: 0,
+      })
     }
   }
 
@@ -195,6 +224,18 @@ function Dashboard({ onOpenDevice }) {
     (device) => device.status === 'online'
   ).length
   const offlineCount = devices.length - onlineCount
+  const healthyCount = devices.filter(
+    (device) => getHealthStatus(device) === 'healthy'
+  ).length
+
+  const warningHealthCount = devices.filter(
+    (device) => getHealthStatus(device) === 'warning'
+  ).length
+
+  const criticalHealthCount = devices.filter(
+    (device) => getHealthStatus(device) === 'critical'
+  ).length
+
 
   const latestUpdatedAt = useMemo(() => {
     const times = devices
@@ -213,7 +254,7 @@ function Dashboard({ onOpenDevice }) {
       <PageHeader
         eyebrow="Operations Center"
         title="dotWatch Dashboard"
-        description={`${onlineCount} Online • ${offlineCount} Offline • ${alarmCount} Active Alarm`}
+        description={`${healthyCount} Healthy • ${warningHealthCount} Warning • ${criticalHealthCount} Critical • ${offlineCount} Offline`}
         actions={
           <div className="dashboard-live-chip">
             <span />
@@ -222,11 +263,32 @@ function Dashboard({ onOpenDevice }) {
         }
       />
 
-      <section className="dashboard-kpi-grid">
+      <section className="dashboard-kpi-grid dashboard-health-kpi-grid">
         <StatCard label="Total Devices" value={loading ? '...' : devices.length} />
-        <StatCard label="Online" value={loading ? '...' : onlineCount} tone="success" />
-        <StatCard label="Offline" value={loading ? '...' : offlineCount} tone="danger" />
-        <StatCard label="Active Alarm" value={alarmCount} tone={alarmCount > 0 ? 'danger' : 'success'} />
+        <StatCard
+          label="Healthy"
+          value={loading ? '...' : healthyCount}
+          hint="Normal operation"
+          tone="success"
+        />
+        <StatCard
+          label="Warning"
+          value={loading ? '...' : warningHealthCount}
+          hint={`${alarmSummary.warning} active warning alarms`}
+          tone={warningHealthCount > 0 ? 'warning' : 'success'}
+        />
+        <StatCard
+          label="Critical"
+          value={loading ? '...' : criticalHealthCount}
+          hint={`${alarmSummary.critical} active critical alarms`}
+          tone={criticalHealthCount > 0 ? 'danger' : 'success'}
+        />
+        <StatCard
+          label="Offline"
+          value={loading ? '...' : offlineCount}
+          hint="No recent data"
+          tone={offlineCount > 0 ? 'danger' : 'success'}
+        />
       </section>
 
       <section className="dashboard-main-grid">
@@ -290,6 +352,7 @@ function Dashboard({ onOpenDevice }) {
         )}
 
         <aside className="dashboard-alarm-column">
+          <LatestActiveAlarms limit={6} />
           <AlarmPanel />
         </aside>
       </section>

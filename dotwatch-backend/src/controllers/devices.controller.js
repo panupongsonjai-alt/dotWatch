@@ -29,7 +29,21 @@ export async function listDevices(req, res) {
       lr.rssi,
 
       COALESCE(lm.latest_time, lr.time) AS latest_time,
-      COALESCE(lm.latest_metrics, '{}'::jsonb) AS latest_metrics
+      COALESCE(lm.latest_metrics, '{}'::jsonb) AS latest_metrics,
+      COALESCE(alarm_health.critical_count, 0) AS alarm_critical_count,
+      COALESCE(alarm_health.warning_count, 0) AS alarm_warning_count,
+      CASE
+        WHEN d.status = 'offline' THEN 'offline'
+        WHEN COALESCE(alarm_health.critical_count, 0) > 0 THEN 'critical'
+        WHEN COALESCE(alarm_health.warning_count, 0) > 0 THEN 'warning'
+        ELSE 'healthy'
+      END AS health_status,
+      CASE
+        WHEN d.status = 'offline' THEN 'No recent data'
+        WHEN COALESCE(alarm_health.critical_count, 0) > 0 THEN 'Critical alarm active'
+        WHEN COALESCE(alarm_health.warning_count, 0) > 0 THEN 'Warning alarm active'
+        ELSE 'Operating normally'
+      END AS health_reason
 
     FROM devices d
     LEFT JOIN device_models dm
@@ -57,6 +71,16 @@ export async function listDevices(req, res) {
         ORDER BY metric_key, time DESC
       ) metric_latest
     ) lm ON true
+
+    LEFT JOIN LATERAL (
+      SELECT
+        COUNT(*) FILTER (WHERE state = 'critical')::int AS critical_count,
+        COUNT(*) FILTER (WHERE state = 'warning')::int AS warning_count
+      FROM alarm_states
+      WHERE device_id = d.id
+        AND user_id = d.user_id
+        AND state <> 'normal'
+    ) alarm_health ON true
 
     WHERE d.user_id = $1
     ORDER BY d.created_at DESC
@@ -204,7 +228,21 @@ export async function getDevice(req, res) {
       lr.rssi,
 
       COALESCE(lm.latest_time, lr.time) AS latest_time,
-      COALESCE(lm.latest_metrics, '{}'::jsonb) AS latest_metrics
+      COALESCE(lm.latest_metrics, '{}'::jsonb) AS latest_metrics,
+      COALESCE(alarm_health.critical_count, 0) AS alarm_critical_count,
+      COALESCE(alarm_health.warning_count, 0) AS alarm_warning_count,
+      CASE
+        WHEN d.status = 'offline' THEN 'offline'
+        WHEN COALESCE(alarm_health.critical_count, 0) > 0 THEN 'critical'
+        WHEN COALESCE(alarm_health.warning_count, 0) > 0 THEN 'warning'
+        ELSE 'healthy'
+      END AS health_status,
+      CASE
+        WHEN d.status = 'offline' THEN 'No recent data'
+        WHEN COALESCE(alarm_health.critical_count, 0) > 0 THEN 'Critical alarm active'
+        WHEN COALESCE(alarm_health.warning_count, 0) > 0 THEN 'Warning alarm active'
+        ELSE 'Operating normally'
+      END AS health_reason
 
     FROM devices d
     LEFT JOIN device_models dm
@@ -232,6 +270,16 @@ export async function getDevice(req, res) {
         ORDER BY metric_key, time DESC
       ) metric_latest
     ) lm ON true
+
+    LEFT JOIN LATERAL (
+      SELECT
+        COUNT(*) FILTER (WHERE state = 'critical')::int AS critical_count,
+        COUNT(*) FILTER (WHERE state = 'warning')::int AS warning_count
+      FROM alarm_states
+      WHERE device_id = d.id
+        AND user_id = d.user_id
+        AND state <> 'normal'
+    ) alarm_health ON true
 
     WHERE d.id = $1
       AND d.user_id = $2

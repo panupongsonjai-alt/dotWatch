@@ -84,8 +84,8 @@ async function upsertState({
       $7,
       $8,
       $9,
-CASE WHEN $4 = 'normal' THEN NULL ELSE $10::timestamptz END,
-CASE WHEN $4 = 'normal' THEN $10::timestamptz ELSE NULL END,
+      CASE WHEN $4 = 'normal' THEN NULL ELSE $10::timestamptz END,
+      CASE WHEN $4 = 'normal' THEN $10::timestamptz ELSE NULL END,
       NOW()
     )
     ON CONFLICT (device_id, metric)
