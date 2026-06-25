@@ -55,7 +55,7 @@ async function upsertState({
   value,
   time,
 }) {
-  const eventTime = time || new Date().toISOString()
+  const eventTime = time ? new Date(time) : new Date()
   const isNormal = nextState === 'normal'
 
   const result = await pool.query(
@@ -84,8 +84,8 @@ async function upsertState({
       $7,
       $8,
       $9,
-      CASE WHEN $4 = 'normal' THEN NULL ELSE $10 END,
-      CASE WHEN $4 = 'normal' THEN $10 ELSE NULL END,
+CASE WHEN $4 = 'normal' THEN NULL ELSE $10::timestamptz END,
+CASE WHEN $4 = 'normal' THEN $10::timestamptz ELSE NULL END,
       NOW()
     )
     ON CONFLICT (device_id, metric)
@@ -168,7 +168,7 @@ async function createAlarmEvent({
       value,
       rule?.severity || status,
       status,
-      time || new Date().toISOString(),
+      time ? new Date(time) : new Date(),
     ]
   )
 
@@ -249,8 +249,9 @@ export async function checkAlarms({ userId, deviceId, reading }) {
 
     if (nextState === 'normal') {
       const recoveryRule =
-        rules.find((rule) => Number(rule.id) === Number(previousState?.rule_id)) ||
-        rules[0]
+        rules.find(
+          (rule) => Number(rule.id) === Number(previousState?.rule_id)
+        ) || rules[0]
 
       const event = await createAlarmEvent({
         userId,
