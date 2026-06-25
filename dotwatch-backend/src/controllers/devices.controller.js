@@ -433,14 +433,19 @@ export async function getHistory(req, res) {
     })
   }
 
-  const diffDays =
-    (toDate.getTime() - fromDate.getTime()) / (1000 * 60 * 60 * 24)
+  if (fromDate > toDate) {
+    return res.status(400).json({
+      message: 'Invalid date range: from must be before to',
+    })
+  }
+
+  const diffHours =
+    (toDate.getTime() - fromDate.getTime()) / (1000 * 60 * 60)
 
   if (metricKey) {
-    let query
-
-    if (diffDays <= 1) {
-      query = `
+    if (diffHours <= 36) {
+      const result = await pool.query(
+        `
         SELECT
           time AS bucket_time,
           metric_key,
@@ -454,64 +459,44 @@ export async function getHistory(req, res) {
           AND metric_key = $2
           AND time BETWEEN $3 AND $4
         ORDER BY time ASC
-        LIMIT 2000
-      `
-    } else if (diffDays <= 30) {
-      query = `
-        SELECT
-          bucket AS bucket_time,
-          metric_key,
-          avg_value,
-          min_value,
-          max_value,
-          sample_count
-        FROM device_metric_readings_1m
-        WHERE device_id = $1
-          AND metric_key = $2
-          AND bucket BETWEEN $3 AND $4
-        ORDER BY bucket ASC
         LIMIT 3000
-      `
-    } else if (diffDays <= 180) {
-      query = `
-        SELECT
-          bucket AS bucket_time,
-          metric_key,
-          avg_value,
-          min_value,
-          max_value,
-          sample_count
-        FROM device_metric_readings_1h
-        WHERE device_id = $1
-          AND metric_key = $2
-          AND bucket BETWEEN $3 AND $4
-        ORDER BY bucket ASC
-        LIMIT 5000
-      `
-    } else {
-      query = `
-        SELECT
-          bucket AS bucket_time,
-          metric_key,
-          avg_value,
-          min_value,
-          max_value,
-          sample_count
-        FROM device_metric_readings_1d
-        WHERE device_id = $1
-          AND metric_key = $2
-          AND bucket BETWEEN $3 AND $4
-        ORDER BY bucket ASC
-        LIMIT 5000
-      `
+        `,
+        [id, metricKey, fromDate, toDate]
+      )
+
+      return res.json(result.rows)
     }
 
-    const result = await pool.query(query, [
-      id,
-      metricKey,
-      fromDate,
-      toDate,
-    ])
+    const bucketSeconds =
+      diffHours <= 24 * 7 ? 60 : diffHours <= 24 * 30 ? 300 : 3600
+
+    const result = await pool.query(
+      `
+      SELECT
+        bucket_time,
+        metric_key,
+        AVG(value)::double precision AS avg_value,
+        MIN(value)::double precision AS min_value,
+        MAX(value)::double precision AS max_value,
+        COUNT(*)::integer AS sample_count
+      FROM (
+        SELECT
+          to_timestamp(
+            floor(extract(epoch from time) / $5) * $5
+          ) AS bucket_time,
+          metric_key,
+          value
+        FROM device_metric_readings
+        WHERE device_id = $1
+          AND metric_key = $2
+          AND time BETWEEN $3 AND $4
+      ) bucketed
+      GROUP BY bucket_time, metric_key
+      ORDER BY bucket_time ASC
+      LIMIT 5000
+      `,
+      [id, metricKey, fromDate, toDate, bucketSeconds]
+    )
 
     return res.json(result.rows)
   }

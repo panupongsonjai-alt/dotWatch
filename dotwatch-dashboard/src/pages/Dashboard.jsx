@@ -7,7 +7,8 @@ import { connectRealtime } from '../services/realtime'
 import { useAlarm } from '../context/AlarmContext'
 import { EmptyState, PageHeader, StatCard } from '../components/common'
 import '../styles/dashboard.css'
-
+import '../styles/page-system.css'
+import ChartWidget from '../components/ChartWidget.jsx'
 const DeviceMap = lazy(() => import('../components/DeviceMap'))
 
 function normalizeRealtimeDevice(reading = {}) {
@@ -434,7 +435,7 @@ function Dashboard({ onOpenDevice }) {
         }
       />
 
-      <section className="dashboard-kpi-grid dashboard-health-kpi-grid">
+      <section className="dw-page-stat-grid dashboard-kpi-grid dashboard-health-kpi-grid">
         <StatCard
           label="Total Devices"
           value={loading ? '...' : devices.length}
@@ -498,8 +499,6 @@ function Dashboard({ onOpenDevice }) {
               >
                 <span className="live-metric-bg-shape" />
 
-                <div className="live-metric-overview-top"></div>
-
                 <div className="live-metric-overview-title">
                   <strong>{metric.metricName}</strong>
                 </div>
@@ -518,8 +517,7 @@ function Dashboard({ onOpenDevice }) {
         )}
       </section>
 
-      <section className="dashboard-main-grid">
-        {dashboardDisplay.showDeviceOverview && (
+      {dashboardDisplay.showDeviceOverview && (
           <section className="app-card devices-overview-panel dashboard-devices-card">
             <div className="app-section-title dashboard-section-title-row">
               <div>
@@ -580,13 +578,7 @@ function Dashboard({ onOpenDevice }) {
               </div>
             )}
           </section>
-        )}
-
-        <aside className="dashboard-alarm-column">
-          <LatestActiveAlarms limit={6} />
-          <AlarmPanel />
-        </aside>
-      </section>
+      )}
 
       {dashboardDisplay.showDeviceMap && (
         <section className="app-card dashboard-map-card-v2">
@@ -605,6 +597,15 @@ function Dashboard({ onOpenDevice }) {
           </Suspense>
         </section>
       )}
+
+      <section className="dashboard-alerts-under-map">
+        <LatestActiveAlarms limit={6} />
+        <AlarmPanel />
+      </section>
+
+      <section className="dashboard-history-analytics-section">
+        <ChartWidget />
+      </section>
     </div>
   )
 }

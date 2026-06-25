@@ -13,7 +13,7 @@ import { Download, LineChart } from 'lucide-react'
 
 import { getDevices, getHistory, getDeviceMetrics } from '../services/api'
 
-const MAX_POINTS = 120
+const MAX_POINTS = 160
 const REFRESH_INTERVAL = 30000
 
 function toArray(payload) {
@@ -143,9 +143,172 @@ function formatMetricValue(value, unit = '') {
   const numberValue = Number(value)
   const displayValue = Number.isInteger(numberValue)
     ? String(numberValue)
-    : numberValue.toFixed(1)
+    : numberValue.toFixed(2)
 
   return `${displayValue}${unit ? ` ${unit}` : ''}`
+}
+
+function getMetricIndex(metricKey = '') {
+  return Number(String(metricKey || '').replace(/[^0-9]/g, '')) || 0
+}
+
+function getFallbackMetricName(metricKey = '') {
+  const key = String(metricKey || '')
+
+  if (key === 'temperature') return 'Temperature'
+  if (key === 'humidity') return 'Humidity'
+  if (key === 'rssi') return 'Signal'
+
+  const index = getMetricIndex(key)
+
+  return index > 0 ? `Metric ${index}` : key || 'Metric'
+}
+
+function getFallbackMetricUnit(metricKey = '') {
+  const key = String(metricKey || '').toLowerCase()
+
+  if (key === 'temperature') return '°C'
+  if (key === 'humidity') return '%'
+  if (key === 'rssi') return 'dBm'
+
+  return ''
+}
+
+function getLatestMetrics(device = {}) {
+  const latestMetrics = {
+    ...(device.latest_metrics || device.metrics || {}),
+  }
+
+  if (device.temperature != null && latestMetrics.temperature == null) {
+    latestMetrics.temperature = device.temperature
+  }
+
+  if (device.humidity != null && latestMetrics.humidity == null) {
+    latestMetrics.humidity = device.humidity
+  }
+
+  if (device.rssi != null && latestMetrics.rssi == null) {
+    latestMetrics.rssi = device.rssi
+  }
+
+  return latestMetrics
+}
+
+function hasLatestMetricData(device = {}) {
+  return Object.values(getLatestMetrics(device)).some(
+    (value) => value != null && Number.isFinite(Number(value))
+  )
+}
+
+function normalizeMetricConfig(metric = {}) {
+  const metricKey = metric.metric_key || metric.source_key || metric.key
+
+  if (!metricKey) return null
+
+  return {
+    metric_key: metricKey,
+    metric_name:
+      metric.metric_name ||
+      metric.name ||
+      metric.label ||
+      getFallbackMetricName(metricKey),
+    unit: metric.unit || getFallbackMetricUnit(metricKey),
+    visible: metric.visible !== false,
+    sort_order: Number(metric.sort_order ?? 9999),
+  }
+}
+
+function getDeviceConfigMetrics(device = {}) {
+  const metricLists = [
+    device.metric_configs,
+    device.metricConfigs,
+    device.device_metrics,
+    device.deviceMetrics,
+    device.metrics_config,
+    device.metricsConfig,
+  ].filter(Array.isArray)
+
+  if (!metricLists.length) return []
+
+  return metricLists[0]
+    .map(normalizeMetricConfig)
+    .filter(Boolean)
+    .filter((metric) => metric.visible !== false)
+}
+
+function getFallbackMetricsFromLatest(device = {}) {
+  return Object.keys(getLatestMetrics(device))
+    .sort((a, b) => getMetricIndex(a) - getMetricIndex(b))
+    .map((metricKey, index) => ({
+      metric_key: metricKey,
+      metric_name: getFallbackMetricName(metricKey),
+      unit: getFallbackMetricUnit(metricKey),
+      visible: true,
+      sort_order: index,
+    }))
+}
+
+function mergeMetricOptions(...metricGroups) {
+  const map = new Map()
+
+  for (const group of metricGroups) {
+    for (const metric of group || []) {
+      const normalized = normalizeMetricConfig(metric)
+      if (!normalized || normalized.visible === false) continue
+
+      const existing = map.get(normalized.metric_key)
+      map.set(normalized.metric_key, {
+        ...normalized,
+        ...(existing || {}),
+        metric_name:
+          existing?.metric_name && existing.metric_name !== normalized.metric_key
+            ? existing.metric_name
+            : normalized.metric_name,
+        unit: existing?.unit || normalized.unit,
+        sort_order: Math.min(
+          Number(existing?.sort_order ?? 9999),
+          Number(normalized.sort_order ?? 9999)
+        ),
+      })
+    }
+  }
+
+  return Array.from(map.values()).sort((a, b) => {
+    if (a.sort_order !== b.sort_order) return a.sort_order - b.sort_order
+    return getMetricIndex(a.metric_key) - getMetricIndex(b.metric_key)
+  })
+}
+
+function getBestMetricKey(metrics = [], device = {}) {
+  const latestMetrics = getLatestMetrics(device)
+
+  const withLatestValue = metrics.find(
+    (metric) =>
+      latestMetrics[metric.metric_key] != null &&
+      Number.isFinite(Number(latestMetrics[metric.metric_key]))
+  )
+
+  return withLatestValue?.metric_key || metrics[0]?.metric_key || ''
+}
+
+function getLatestPoint(device = {}, metricKey = '') {
+  const latestMetrics = getLatestMetrics(device)
+  const value = getNumber(latestMetrics[metricKey])
+  const time =
+    device.latest_time ||
+    device.latestTime ||
+    device.last_ingest_at ||
+    device.lastIngestAt ||
+    device.last_seen_at ||
+    device.lastSeenAt
+
+  if (value == null || !time) return null
+
+  return {
+    time,
+    label: formatTime(time),
+    value,
+  }
 }
 
 function CustomTooltip({ active, payload, label, unit }) {
@@ -175,10 +338,18 @@ function ChartWidget({ defaultDeviceId }) {
   const [deviceMetrics, setDeviceMetrics] = useState([])
   const [rangeHours, setRangeHours] = useState(24)
   const [chartData, setChartData] = useState([])
-  const [loading, setLoading] = useState(true)
+  const [devicesLoading, setDevicesLoading] = useState(true)
+  const [historyLoading, setHistoryLoading] = useState(false)
   const [error, setError] = useState('')
 
   const lastSignatureRef = useRef('')
+
+  const selectedDevice = useMemo(() => {
+    return (
+      devices.find((device) => String(device.id) === String(selectedDeviceId)) ||
+      null
+    )
+  }, [devices, selectedDeviceId])
 
   const selectedMetric = useMemo(() => {
     return (
@@ -192,6 +363,7 @@ function ChartWidget({ defaultDeviceId }) {
 
   async function loadDevices() {
     try {
+      setDevicesLoading(true)
       setError('')
 
       const payload = await getDevices()
@@ -200,75 +372,137 @@ function ChartWidget({ defaultDeviceId }) {
       setDevices(list)
 
       if (list.length > 0) {
-        setSelectedDeviceId((current) => current || String(list[0].id))
+        setSelectedDeviceId((current) => {
+          const currentExists = list.some(
+            (device) => String(device.id) === String(current)
+          )
+
+          if (current && currentExists) return current
+
+          const preferredDevice =
+            list.find((device) => String(device.id) === String(defaultDeviceId)) ||
+            list.find(hasLatestMetricData) ||
+            list[0]
+
+          return preferredDevice ? String(preferredDevice.id) : ''
+        })
+      } else {
+        setSelectedDeviceId('')
+        setDeviceMetrics([])
+        setSelectedMetricKey('')
+        setChartData([])
       }
     } catch (err) {
       console.error('loadDevices error:', err)
       setError(err.message || 'โหลดรายการอุปกรณ์ไม่ได้')
     } finally {
-      setLoading(false)
+      setDevicesLoading(false)
     }
   }
 
   async function loadMetricConfig(deviceId) {
-    if (!deviceId) return
+    if (!deviceId) {
+      setDeviceMetrics([])
+      setSelectedMetricKey('')
+      setHistoryLoading(false)
+      return
+    }
+
+    const device =
+      devices.find((item) => String(item.id) === String(deviceId)) || {}
 
     try {
-      const result = await getDeviceMetrics(deviceId)
+      setError('')
 
-      const metrics = Array.isArray(result?.metrics)
-        ? result.metrics
-        : Array.isArray(result)
-          ? result
-          : []
+      let apiMetrics = []
 
-      const visibleMetrics = metrics
-        .filter((metric) => metric.visible !== false)
-        .sort((a, b) => Number(a.sort_order || 0) - Number(b.sort_order || 0))
+      try {
+        const result = await getDeviceMetrics(deviceId)
 
-      setDeviceMetrics(visibleMetrics)
+        apiMetrics = Array.isArray(result?.metrics)
+          ? result.metrics
+          : Array.isArray(result)
+            ? result
+            : []
+      } catch (metricError) {
+        console.warn('getDeviceMetrics fallback:', metricError)
+      }
+
+      const metrics = mergeMetricOptions(
+        getDeviceConfigMetrics(device),
+        apiMetrics,
+        getFallbackMetricsFromLatest(device)
+      )
+
+      setDeviceMetrics(metrics)
 
       setSelectedMetricKey((current) => {
-        const stillExists = visibleMetrics.some(
+        const stillExists = metrics.some(
           (metric) => String(metric.metric_key) === String(current)
         )
 
         if (stillExists) return current
 
-        return visibleMetrics[0]?.metric_key || ''
+        return getBestMetricKey(metrics, device)
       })
+
+      if (!metrics.length) {
+        setChartData([])
+        setHistoryLoading(false)
+      }
     } catch (err) {
       console.error('loadMetricConfig error:', err)
       setDeviceMetrics([])
       setSelectedMetricKey('')
+      setChartData([])
       setError(err.message || 'โหลด Metric ของอุปกรณ์ไม่ได้')
+      setHistoryLoading(false)
     }
   }
 
-  async function loadHistory(deviceId, metricKey) {
-    if (!deviceId || !metricKey) return
+  async function requestHistory(deviceId, metricKey, hours) {
+    const { from, to } = getRange(hours)
+    const payload = await getHistory(deviceId, from, to, metricKey)
+    return normalizeHistory(payload)
+  }
+
+  async function loadHistory(deviceId, metricKey, device) {
+    if (!deviceId || !metricKey) {
+      setChartData([])
+      setHistoryLoading(false)
+      return
+    }
 
     try {
+      setHistoryLoading(true)
       setError('')
 
-      const { from, to } = getRange(rangeHours)
-      const payload = await getHistory(deviceId, from, to, metricKey)
-      const nextData = normalizeHistory(payload)
+      let nextData = await requestHistory(deviceId, metricKey, rangeHours)
+
+      if (!nextData.length && rangeHours < 168) {
+        nextData = await requestHistory(deviceId, metricKey, 168)
+      }
+
+      if (!nextData.length) {
+        const latestPoint = getLatestPoint(device, metricKey)
+        if (latestPoint) nextData = [latestPoint]
+      }
 
       const latest = nextData[nextData.length - 1]
       const signature = latest
-        ? `${metricKey}-${latest.time}-${latest.value}-${nextData.length}`
-        : `${metricKey}-empty`
+        ? `${deviceId}-${metricKey}-${latest.time}-${latest.value}-${nextData.length}`
+        : `${deviceId}-${metricKey}-empty`
 
-      if (signature === lastSignatureRef.current) return
-
-      lastSignatureRef.current = signature
-      setChartData(nextData)
+      if (signature !== lastSignatureRef.current) {
+        lastSignatureRef.current = signature
+        setChartData(nextData)
+      }
     } catch (err) {
       console.error('loadHistory error:', err)
       setError(err.message || 'โหลดข้อมูลกราฟไม่ได้')
+      setChartData([])
     } finally {
-      setLoading(false)
+      setHistoryLoading(false)
     }
   }
 
@@ -311,43 +545,40 @@ function ChartWidget({ defaultDeviceId }) {
   }, [])
 
   useEffect(() => {
-    if (!selectedDeviceId) return
+    if (!selectedDeviceId || !devices.length) return
 
-    setLoading(true)
     setChartData([])
-    setDeviceMetrics([])
-    setSelectedMetricKey('')
     lastSignatureRef.current = ''
-
     loadMetricConfig(selectedDeviceId)
-  }, [selectedDeviceId])
+  }, [selectedDeviceId, devices])
 
   useEffect(() => {
-    if (!selectedDeviceId || !selectedMetricKey) return
+    if (!selectedDeviceId || !selectedMetricKey || !selectedDevice) return
 
-    setLoading(true)
     setChartData([])
     lastSignatureRef.current = ''
-
-    loadHistory(selectedDeviceId, selectedMetricKey)
+    loadHistory(selectedDeviceId, selectedMetricKey, selectedDevice)
 
     const timer = setInterval(() => {
-      loadHistory(selectedDeviceId, selectedMetricKey)
+      loadHistory(selectedDeviceId, selectedMetricKey, selectedDevice)
     }, REFRESH_INTERVAL)
 
     return () => clearInterval(timer)
-  }, [selectedDeviceId, selectedMetricKey, rangeHours])
+  }, [selectedDeviceId, selectedMetricKey, selectedDevice, rangeHours])
 
-  const chartTitle = selectedMetric?.metric_name || 'Metric Activity'
+  const chartTitle = selectedMetric?.metric_name || 'History Analytics'
   const chartUnit = selectedMetric?.unit || ''
+  const loading = devicesLoading || historyLoading
 
   return (
     <section className="dw-chart-card">
       <div className="dw-chart-header">
         <div>
-          <p className="section-eyebrow">Realtime Metric Activity</p>
+          <p className="section-eyebrow">History Analytics</p>
           <h2>{chartTitle}</h2>
-          <span>แสดงข้อมูลย้อนหลังของ Metric ที่เลือกจากอุปกรณ์</span>
+          <span>
+            แสดงข้อมูลย้อนหลังของ Metric ที่เลือก ถ้าไม่มี history จะใช้ค่าล่าสุดเป็น fallback
+          </span>
         </div>
 
         <div className="dw-chart-actions">
@@ -394,6 +625,7 @@ function ChartWidget({ defaultDeviceId }) {
             <option value={12}>12 ชั่วโมง</option>
             <option value={24}>24 ชั่วโมง</option>
             <option value={168}>7 วัน</option>
+            <option value={720}>30 วัน</option>
           </select>
 
           <button
@@ -432,7 +664,7 @@ function ChartWidget({ defaultDeviceId }) {
           <div>
             <span>จำนวนข้อมูล</span>
             <strong>{chartData.length}</strong>
-            <p>{selectedMetricKey || '--'}</p>
+            <p>{selectedMetric?.metric_name || selectedMetricKey || '--'}</p>
           </div>
         </div>
       </div>
@@ -443,7 +675,13 @@ function ChartWidget({ defaultDeviceId }) {
         <div className="chart-message">กำลังโหลดข้อมูล...</div>
       )}
 
-      {!error && !loading && chartData.length === 0 && (
+      {!error && !loading && !deviceMetrics.length && (
+        <div className="chart-message">
+          ยังไม่พบ Metric ของ Device นี้ หรือ Device ยังไม่เคยส่งค่าเข้าระบบ
+        </div>
+      )}
+
+      {!error && !loading && deviceMetrics.length > 0 && chartData.length === 0 && (
         <div className="chart-message">ยังไม่มีข้อมูลกราฟสำหรับ Metric นี้</div>
       )}
 
@@ -514,8 +752,10 @@ function ChartWidget({ defaultDeviceId }) {
                 stroke="#3b82f6"
                 fill="url(#dwMetricFill)"
                 strokeWidth={3}
-                dot={false}
-                activeDot={false}
+                dot={chartData.length <= 1}
+                activeDot={{
+                  r: 5,
+                }}
                 connectNulls
                 isAnimationActive={false}
               />
