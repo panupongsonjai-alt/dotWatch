@@ -457,7 +457,6 @@
 }
 
 .live-metric-overview-card {
-  appearance: none;
   position: relative;
   min-height: 176px;
   display: grid;
@@ -466,7 +465,6 @@
   padding: 18px;
   border-radius: 19px;
   overflow: hidden;
-  cursor: pointer;
   color: var(--text);
   text-align: left;
   background:
@@ -474,36 +472,12 @@
     linear-gradient(145deg, rgba(15, 23, 42, 0.98), rgba(15, 23, 42, 0.9));
   border: 1px solid rgba(59, 130, 246, 0.26);
   box-shadow: 0 18px 36px rgba(2, 6, 23, 0.22);
-  transition:
-    transform 0.18s ease,
-    border-color 0.18s ease,
-    box-shadow 0.18s ease;
 }
 
 :root[data-theme='light'] .live-metric-overview-card {
   background:
     radial-gradient(circle at 94% 94%, rgba(37, 99, 235, 0.12) 0, rgba(37, 99, 235, 0.12) 23%, transparent 24%),
     linear-gradient(145deg, #ffffff, #f8fafc);
-}
-
-.live-metric-overview-card:hover {
-  transform: translateY(-3px);
-  border-color: rgba(6, 182, 212, 0.5);
-  box-shadow: var(--shadow-hover);
-}
-
-.live-metric-overview-card::before {
-  content: '';
-  position: absolute;
-  inset: 0 0 auto;
-  height: 3px;
-  background: linear-gradient(90deg, #06b6d4, #2563eb);
-  opacity: 0;
-  transition: opacity 0.18s ease;
-}
-
-.live-metric-overview-card:hover::before {
-  opacity: 1;
 }
 
 .live-metric-overview-card.warning {
@@ -702,5 +676,30 @@
 
   .live-metric-overview-card {
     min-height: 160px;
+  }
+}
+
+/* =========================================================
+   Data Overview - All Devices
+========================================================= */
+
+.live-metrics-overview-card {
+  max-height: none;
+}
+
+.live-metrics-overview-grid {
+  grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
+  align-items: stretch;
+}
+
+@media (min-width: 1500px) {
+  .live-metrics-overview-grid {
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  }
+}
+
+@media (max-width: 560px) {
+  .live-metrics-overview-grid {
+    grid-template-columns: 1fr;
   }
 }

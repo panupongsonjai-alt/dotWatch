@@ -76,7 +76,7 @@ function getMetricIndex(metricKey = '') {
   return Number(String(metricKey).replace(/[^0-9]/g, '')) || 0
 }
 
-function getMetricMeta(device = {}, metricKey = '') {
+function getConfiguredMetrics(device = {}) {
   const metricLists = [
     device.metric_configs,
     device.metricConfigs,
@@ -86,35 +86,18 @@ function getMetricMeta(device = {}, metricKey = '') {
     device.metricsConfig,
   ].filter(Array.isArray)
 
-  for (const metricList of metricLists) {
-    const match = metricList.find(
-      (metric) =>
-        metric.metric_key === metricKey ||
-        metric.key === metricKey ||
-        metric.source_key === metricKey
-    )
+  if (!metricLists.length) return []
 
-    if (match) {
-      return {
-        name:
-          match.metric_name ||
-          match.name ||
-          match.label ||
-          match.metric_key ||
-          metricKey,
-        unit: match.unit || '',
-        visible: match.visible !== false,
-      }
-    }
-  }
+  return metricLists[0]
+    .filter((metric) => metric.visible !== false)
+    .sort((a, b) => {
+      const orderA = Number(a.sort_order ?? 9999)
+      const orderB = Number(b.sort_order ?? 9999)
 
-  const index = getMetricIndex(metricKey)
+      if (orderA !== orderB) return orderA - orderB
 
-  return {
-    name: index > 0 ? `Metric ${index}` : String(metricKey || 'Metric'),
-    unit: '',
-    visible: true,
-  }
+      return getMetricIndex(a.metric_key || a.key) - getMetricIndex(b.metric_key || b.key)
+    })
 }
 
 function formatMetricValue(value) {
@@ -146,15 +129,24 @@ function getMetricInitial(metricKey = '') {
   return 'M'
 }
 
-function getDeviceMetricCards(devices = [], limit = 40) {
+function getDeviceMetricCards(devices = [], limit = Infinity) {
   return devices
     .flatMap((device) => {
       const latestMetrics = device.latest_metrics || device.metrics || {}
+      const configuredMetrics = getConfiguredMetrics(device)
 
-      return Object.entries(latestMetrics)
-        .filter(([, value]) => value != null && Number.isFinite(Number(value)))
-        .map(([metricKey, value]) => {
-          const meta = getMetricMeta(device, metricKey)
+      if (!configuredMetrics.length) return []
+
+      return configuredMetrics
+        .map((metricConfig) => {
+          const metricKey =
+            metricConfig.metric_key ||
+            metricConfig.source_key ||
+            metricConfig.key
+
+          const value = latestMetrics[metricKey]
+
+          if (value == null || !Number.isFinite(Number(value))) return null
 
           return {
             id: `${device.id}-${metricKey}`,
@@ -162,26 +154,32 @@ function getDeviceMetricCards(devices = [], limit = 40) {
             deviceName: device.name || device.device_code || 'Unnamed Device',
             deviceCode: device.device_code,
             metricKey,
-            metricName: meta.name,
-            unit: meta.unit,
-            visible: meta.visible,
+            metricName:
+              metricConfig.metric_name ||
+              metricConfig.name ||
+              metricConfig.label ||
+              `Metric ${getMetricIndex(metricKey) || ''}`.trim(),
+            unit: metricConfig.unit || '',
             value: formatMetricValue(value),
             latestTime: device.latest_time || device.last_ingest_at,
             healthStatus: getHealthStatus(device),
             initial: getMetricInitial(metricKey),
+            sortOrder: Number(metricConfig.sort_order ?? 9999),
           }
         })
+        .filter(Boolean)
     })
-    .filter((metric) => metric.visible !== false)
     .sort((a, b) => {
       const deviceA = String(a.deviceName || '')
       const deviceB = String(b.deviceName || '')
 
       if (deviceA !== deviceB) return deviceA.localeCompare(deviceB)
 
+      if (a.sortOrder !== b.sortOrder) return a.sortOrder - b.sortOrder
+
       return getMetricIndex(a.metricKey) - getMetricIndex(b.metricKey)
     })
-    .slice(0, limit)
+    .slice(0, Number.isFinite(limit) ? limit : undefined)
 }
 
 function Dashboard({ onOpenDevice }) {
@@ -352,7 +350,7 @@ function Dashboard({ onOpenDevice }) {
 
 
   const dataOverviewMetrics = useMemo(
-    () => getDeviceMetricCards(devices, 40),
+    () => getDeviceMetricCards(devices),
     [devices]
   )
 
@@ -414,7 +412,7 @@ function Dashboard({ onOpenDevice }) {
         <div className="app-section-title dashboard-section-title-row live-metrics-overview-header">
           <div>
             <h2>Data Overview</h2>
-            <p>ค่าส่าสุดจาก Device ทั้งหมด แยกเป็น Card ละค่า</p>
+            <p>แสดงค่าของทุก Device เฉพาะ Metric ที่เปิด Visible ไว้</p>
           </div>
 
           <span className="device-count-badge live-metrics-count-badge">
@@ -429,17 +427,15 @@ function Dashboard({ onOpenDevice }) {
           />
         ) : dataOverviewMetrics.length === 0 ? (
           <EmptyState
-            title="ยังไม่มีข้อมูล Metric"
-            description="รอ Device ส่งข้อมูลเข้าระบบ"
+            title="ยังไม่มี Metric ที่ตั้งค่าให้แสดง"
+            description="ตรวจสอบ Metric Display ว่าเปิด Visible แล้ว และรอ Device ส่งข้อมูล"
           />
         ) : (
           <div className="live-metrics-overview-grid">
             {dataOverviewMetrics.map((metric) => (
-              <button
+              <article
                 key={metric.id}
-                type="button"
                 className={`live-metric-overview-card ${metric.healthStatus}`}
-                onClick={() => onOpenDevice?.(metric.deviceId)}
               >
                 <span className="live-metric-bg-shape" />
 
@@ -448,13 +444,14 @@ function Dashboard({ onOpenDevice }) {
                     <i />
                   </span>
 
-                  <span className="live-metric-key">
-                    {metric.metricKey}
-                  </span>
+                  {metric.unit && (
+                    <span className="live-metric-key">
+                      {metric.unit}
+                    </span>
+                  )}
                 </div>
 
                 <div className="live-metric-overview-title">
-                  <span>ME</span>
                   <strong>{metric.metricName}</strong>
                 </div>
 
@@ -464,7 +461,7 @@ function Dashboard({ onOpenDevice }) {
 
                 <div className="live-metric-overview-value">
                   <strong>{metric.value}</strong>
-                  <span>{metric.unit || metric.initial}</span>
+                  {metric.unit && <span>{metric.unit}</span>}
                 </div>
 
                 <div className="live-metric-overview-device">
@@ -474,7 +471,7 @@ function Dashboard({ onOpenDevice }) {
                 <div className="live-metric-overview-time">
                   {formatRelativeTime(metric.latestTime)}
                 </div>
-              </button>
+              </article>
             ))}
           </div>
         )}

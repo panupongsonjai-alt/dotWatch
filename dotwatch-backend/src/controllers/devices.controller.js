@@ -30,20 +30,7 @@ export async function listDevices(req, res) {
 
       COALESCE(lm.latest_time, lr.time) AS latest_time,
       COALESCE(lm.latest_metrics, '{}'::jsonb) AS latest_metrics,
-      COALESCE(alarm_health.critical_count, 0) AS alarm_critical_count,
-      COALESCE(alarm_health.warning_count, 0) AS alarm_warning_count,
-      CASE
-        WHEN d.status = 'offline' THEN 'offline'
-        WHEN COALESCE(alarm_health.critical_count, 0) > 0 THEN 'critical'
-        WHEN COALESCE(alarm_health.warning_count, 0) > 0 THEN 'warning'
-        ELSE 'healthy'
-      END AS health_status,
-      CASE
-        WHEN d.status = 'offline' THEN 'No recent data'
-        WHEN COALESCE(alarm_health.critical_count, 0) > 0 THEN 'Critical alarm active'
-        WHEN COALESCE(alarm_health.warning_count, 0) > 0 THEN 'Warning alarm active'
-        ELSE 'Operating normally'
-      END AS health_reason
+      COALESCE(metric_config.metric_configs, '[]'::jsonb) AS metric_configs
 
     FROM devices d
     LEFT JOIN device_models dm
@@ -74,13 +61,23 @@ export async function listDevices(req, res) {
 
     LEFT JOIN LATERAL (
       SELECT
-        COUNT(*) FILTER (WHERE state = 'critical')::int AS critical_count,
-        COUNT(*) FILTER (WHERE state = 'warning')::int AS warning_count
-      FROM alarm_states
-      WHERE device_id = d.id
-        AND user_id = d.user_id
-        AND state <> 'normal'
-    ) alarm_health ON true
+        jsonb_agg(
+          jsonb_build_object(
+            'id', dm_cfg.id,
+            'metric_key', dm_cfg.metric_key,
+            'source_key', dm_cfg.source_key,
+            'metric_name', dm_cfg.metric_name,
+            'metric_type', dm_cfg.metric_type,
+            'unit', dm_cfg.unit,
+            'icon', dm_cfg.icon,
+            'visible', dm_cfg.visible,
+            'sort_order', dm_cfg.sort_order
+          )
+          ORDER BY dm_cfg.sort_order ASC, dm_cfg.metric_key ASC
+        ) AS metric_configs
+      FROM device_metrics dm_cfg
+      WHERE dm_cfg.device_id = d.id
+    ) metric_config ON true
 
     WHERE d.user_id = $1
     ORDER BY d.created_at DESC
@@ -229,20 +226,7 @@ export async function getDevice(req, res) {
 
       COALESCE(lm.latest_time, lr.time) AS latest_time,
       COALESCE(lm.latest_metrics, '{}'::jsonb) AS latest_metrics,
-      COALESCE(alarm_health.critical_count, 0) AS alarm_critical_count,
-      COALESCE(alarm_health.warning_count, 0) AS alarm_warning_count,
-      CASE
-        WHEN d.status = 'offline' THEN 'offline'
-        WHEN COALESCE(alarm_health.critical_count, 0) > 0 THEN 'critical'
-        WHEN COALESCE(alarm_health.warning_count, 0) > 0 THEN 'warning'
-        ELSE 'healthy'
-      END AS health_status,
-      CASE
-        WHEN d.status = 'offline' THEN 'No recent data'
-        WHEN COALESCE(alarm_health.critical_count, 0) > 0 THEN 'Critical alarm active'
-        WHEN COALESCE(alarm_health.warning_count, 0) > 0 THEN 'Warning alarm active'
-        ELSE 'Operating normally'
-      END AS health_reason
+      COALESCE(metric_config.metric_configs, '[]'::jsonb) AS metric_configs
 
     FROM devices d
     LEFT JOIN device_models dm
@@ -273,13 +257,23 @@ export async function getDevice(req, res) {
 
     LEFT JOIN LATERAL (
       SELECT
-        COUNT(*) FILTER (WHERE state = 'critical')::int AS critical_count,
-        COUNT(*) FILTER (WHERE state = 'warning')::int AS warning_count
-      FROM alarm_states
-      WHERE device_id = d.id
-        AND user_id = d.user_id
-        AND state <> 'normal'
-    ) alarm_health ON true
+        jsonb_agg(
+          jsonb_build_object(
+            'id', dm_cfg.id,
+            'metric_key', dm_cfg.metric_key,
+            'source_key', dm_cfg.source_key,
+            'metric_name', dm_cfg.metric_name,
+            'metric_type', dm_cfg.metric_type,
+            'unit', dm_cfg.unit,
+            'icon', dm_cfg.icon,
+            'visible', dm_cfg.visible,
+            'sort_order', dm_cfg.sort_order
+          )
+          ORDER BY dm_cfg.sort_order ASC, dm_cfg.metric_key ASC
+        ) AS metric_configs
+      FROM device_metrics dm_cfg
+      WHERE dm_cfg.device_id = d.id
+    ) metric_config ON true
 
     WHERE d.id = $1
       AND d.user_id = $2
