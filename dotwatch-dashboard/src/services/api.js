@@ -231,3 +231,27 @@ export function getActivityLogs({ deviceId, limit } = {}) {
 
   return apiFetch(`/api/activity${query ? `?${query}` : ''}`)
 }
+
+export function getAlarmSummary() {
+  return apiFetch('/api/alarm-states/summary')
+}
+
+export function getActiveAlarms(limit = 50) {
+  const params = new URLSearchParams()
+
+  if (limit) params.set('limit', String(limit))
+
+  const query = params.toString()
+
+  return apiFetch(`/api/alarm-states/active${query ? `?${query}` : ''}`)
+}
+
+export function getAlarmHistory(limit = 100) {
+  const params = new URLSearchParams()
+
+  if (limit) params.set('limit', String(limit))
+
+  const query = params.toString()
+
+  return apiFetch(`/api/alarm-states/history${query ? `?${query}` : ''}`)
+}

@@ -19,6 +19,7 @@ import { adminRouter } from './routes/admin.routes.js'
 import { activityRouter } from './routes/activity.routes.js'
 import { pool } from './db/pool.js'
 import { createDeviceStatusActivity } from './services/activity.service.js'
+import { alarmStateRouter } from './routes/alarmState.routes.js'
 
 const app = express()
 const server = http.createServer(app)
@@ -313,6 +314,7 @@ app.use('/api/demo', apiLimiter, demoRouter)
 app.use('/api/ingest', ingestLimiter, ingestRouter)
 app.use('/api/alarms', apiLimiter, alarmsRouter)
 app.use('/api/alarm-rules', apiLimiter, alarmRulesRouter)
+app.use('/api/alarm-states', alarmStateRouter)
 app.use('/api/admin', apiLimiter, adminRouter)
 app.use('/api/activity', apiLimiter, activityRouter)
 app.use('/api', deviceMetricsRoutes)

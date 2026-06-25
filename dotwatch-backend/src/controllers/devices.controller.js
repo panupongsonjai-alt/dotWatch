@@ -385,85 +385,119 @@ export async function getHistory(req, res) {
 
   const toDate = req.query.to ? new Date(req.query.to) : now
 
-  if (metricKey) {
-    const result = await pool.query(
-      `
-      SELECT
-        time AS bucket_time,
-        metric_key,
-        value,
-        value AS avg_value,
-        value AS min_value,
-        value AS max_value
-      FROM device_metric_readings
-      WHERE device_id = $1
-        AND metric_key = $2
-        AND time BETWEEN $3 AND $4
-      ORDER BY time ASC
-      LIMIT 1000
-      `,
-      [id, metricKey, fromDate, toDate]
-    )
-
-    return res.json(result.rows)
+  if (Number.isNaN(fromDate.getTime()) || Number.isNaN(toDate.getTime())) {
+    return res.status(400).json({
+      message: 'Invalid date range',
+    })
   }
 
   const diffDays =
     (toDate.getTime() - fromDate.getTime()) / (1000 * 60 * 60 * 24)
 
-  let query
+  if (metricKey) {
+    let query
 
-  if (diffDays <= 1) {
-    query = `
-      SELECT
-        time AS bucket_time,
-        temperature AS avg_temperature,
-        temperature AS min_temperature,
-        temperature AS max_temperature,
-        humidity AS avg_humidity,
-        humidity AS min_humidity,
-        humidity AS max_humidity
-      FROM sensor_readings
-      WHERE device_id = $1
-        AND time BETWEEN $2 AND $3
-      ORDER BY time ASC
-      LIMIT 288
-    `
-  } else if (diffDays <= 30) {
-    query = `
-      SELECT
-        bucket AS bucket_time,
-        avg_temperature,
-        min_temperature,
-        max_temperature,
-        avg_humidity,
-        min_humidity,
-        max_humidity
-      FROM sensor_readings_1m
-      WHERE device_id = $1
-        AND bucket BETWEEN $2 AND $3
-      ORDER BY bucket ASC
-      LIMIT 500
-    `
-  } else {
-    query = `
-      SELECT
-        bucket AS bucket_time,
-        avg_temperature,
-        min_temperature,
-        max_temperature,
-        avg_humidity,
-        min_humidity,
-        max_humidity
-      FROM sensor_readings_1h
-      WHERE device_id = $1
-        AND bucket BETWEEN $2 AND $3
-      ORDER BY bucket ASC
-      LIMIT 500
-    `
+    if (diffDays <= 1) {
+      query = `
+        SELECT
+          time AS bucket_time,
+          metric_key,
+          value,
+          value AS avg_value,
+          value AS min_value,
+          value AS max_value,
+          1 AS sample_count
+        FROM device_metric_readings
+        WHERE device_id = $1
+          AND metric_key = $2
+          AND time BETWEEN $3 AND $4
+        ORDER BY time ASC
+        LIMIT 2000
+      `
+    } else if (diffDays <= 30) {
+      query = `
+        SELECT
+          bucket AS bucket_time,
+          metric_key,
+          avg_value,
+          min_value,
+          max_value,
+          sample_count
+        FROM device_metric_readings_1m
+        WHERE device_id = $1
+          AND metric_key = $2
+          AND bucket BETWEEN $3 AND $4
+        ORDER BY bucket ASC
+        LIMIT 3000
+      `
+    } else if (diffDays <= 180) {
+      query = `
+        SELECT
+          bucket AS bucket_time,
+          metric_key,
+          avg_value,
+          min_value,
+          max_value,
+          sample_count
+        FROM device_metric_readings_1h
+        WHERE device_id = $1
+          AND metric_key = $2
+          AND bucket BETWEEN $3 AND $4
+        ORDER BY bucket ASC
+        LIMIT 5000
+      `
+    } else {
+      query = `
+        SELECT
+          bucket AS bucket_time,
+          metric_key,
+          avg_value,
+          min_value,
+          max_value,
+          sample_count
+        FROM device_metric_readings_1d
+        WHERE device_id = $1
+          AND metric_key = $2
+          AND bucket BETWEEN $3 AND $4
+        ORDER BY bucket ASC
+        LIMIT 5000
+      `
+    }
+
+    const result = await pool.query(query, [
+      id,
+      metricKey,
+      fromDate,
+      toDate,
+    ])
+
+    return res.json(result.rows)
   }
 
-  const result = await pool.query(query, [id, fromDate, toDate])
+  const result = await pool.query(
+    `
+    SELECT
+      latest.time AS bucket_time,
+      latest.metric_key,
+      latest.value,
+      latest.value AS avg_value,
+      latest.value AS min_value,
+      latest.value AS max_value,
+      1 AS sample_count
+    FROM (
+      SELECT DISTINCT ON (metric_key)
+        metric_key,
+        value,
+        time
+      FROM device_metric_readings
+      WHERE device_id = $1
+        AND time BETWEEN $2 AND $3
+      ORDER BY metric_key, time DESC
+    ) latest
+    ORDER BY latest.metric_key ASC
+    `,
+    [id, fromDate, toDate]
+  )
 
   res.json(result.rows)
 }
