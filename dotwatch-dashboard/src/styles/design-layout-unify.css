@@ -153,7 +153,6 @@
   color: var(--muted);
 }
 
-/* Keep Dashboard live cards closer to the shared design tone */
 .live-metric-overview-card {
   background:
     linear-gradient(135deg, rgba(37, 99, 235, 0.08), transparent 58%),
@@ -195,14 +194,5 @@
   .settings-v3-stat-grid,
   .profile-v3-stat-grid {
     grid-template-columns: 1fr;
-  }
-
-  .primary-button,
-  .secondary-button,
-  .ghost-button,
-  .history-export-btn,
-  .save-btn,
-  .delete-btn {
-    width: 100%;
   }
 }

@@ -1,6 +1,5 @@
 /* =========================================================
    Device Detail - Stat / State Cards Single Row Fix
-   dotWatch Dashboard
 ========================================================= */
 
 .device-detail-page,
@@ -46,21 +45,6 @@
   --device-detail-stat-count: 5;
 }
 
-.device-detail-stat-grid:has(> :nth-child(6)),
-.device-detail-state-grid:has(> :nth-child(6)),
-.device-detail-stats-grid:has(> :nth-child(6)),
-.device-detail-status-grid:has(> :nth-child(6)),
-.device-detail-summary-grid:has(> :nth-child(6)),
-.device-detail-kpi-grid:has(> :nth-child(6)),
-.device-detail-health-grid:has(> :nth-child(6)),
-.device-detail-metrics-summary:has(> :nth-child(6)),
-.device-detail-overview-grid:has(> :nth-child(6)),
-.device-detail-page .dw-page-stat-grid:has(> :nth-child(6)),
-.device-detail-v2-page .dw-page-stat-grid:has(> :nth-child(6)),
-.device-detail-page-v2 .dw-page-stat-grid:has(> :nth-child(6)) {
-  --device-detail-stat-count: 6;
-}
-
 .device-detail-stat-grid > *,
 .device-detail-state-grid > *,
 .device-detail-stats-grid > *,
@@ -75,6 +59,18 @@
 .device-detail-page-v2 .dw-page-stat-grid > * {
   min-width: 0 !important;
   width: 100% !important;
+}
+
+.device-detail-firmware-stat {
+  min-width: 0 !important;
+  width: 100% !important;
+  height: 100%;
+}
+
+.device-detail-firmware-stat > .dw-stat-card,
+.device-detail-firmware-stat > .stat-card,
+.device-detail-firmware-stat > article {
+  height: 100%;
 }
 
 .device-detail-page .dw-stat-card,

@@ -1,0 +1,191 @@
+/* =========================================================
+   Device Detail Hard Cleanup
+   dotWatch Dashboard
+
+   ใช้กรณี Device Detail ใช้ component อีกชุดหนึ่งที่ไม่ได้อยู่ใน
+   SelectedDevicePanel.jsx
+
+   เป้าหมาย:
+   1. ซ่อน History Analytics / ChartWidget เฉพาะในหน้า Device Detail
+   2. ซ่อนแถบ Healthy ใต้ tab เฉพาะในหน้า Device Detail
+   3. ลด font Firmware card
+========================================================= */
+
+/* ---------------------------------------------------------
+   Scope helpers
+--------------------------------------------------------- */
+
+.device-page,
+.device-detail-page,
+.device-detail-v2-page,
+.device-detail-page-v2 {
+  --device-detail-firmware-font: clamp(18px, 1.55vw, 23px);
+}
+
+/* ---------------------------------------------------------
+   1) Hide embedded chart/history card in Device Detail only
+   Main History page is not affected.
+--------------------------------------------------------- */
+
+.device-page .dw-chart-card,
+.device-page .history-analytics-card,
+.device-page .history-analytics-panel,
+.device-page .device-history-card,
+.device-page .device-history-panel,
+.device-page .realtime-history-card,
+.device-page .metric-history-card,
+.device-page .analytics-card,
+.device-page [class*='history-analytics'],
+.device-page [class*='device-history'],
+.device-page [class*='metric-history'],
+.device-page [class*='realtime-history'],
+.device-page [class*='analytics-card'],
+.device-detail-page .dw-chart-card,
+.device-detail-v2-page .dw-chart-card,
+.device-detail-page-v2 .dw-chart-card,
+.device-detail-page [class*='history-analytics'],
+.device-detail-v2-page [class*='history-analytics'],
+.device-detail-page-v2 [class*='history-analytics'],
+.device-detail-page [class*='device-history'],
+.device-detail-v2-page [class*='device-history'],
+.device-detail-page-v2 [class*='device-history'] {
+  display: none !important;
+}
+
+/*
+  Fallback สำหรับ card ที่มี filter grid / export button ของกราฟ
+  ซ่อนไว้เฉพาะภายใน device page เท่านั้น
+*/
+.device-page section:has(.dw-chart-actions),
+.device-page article:has(.dw-chart-actions),
+.device-page div:has(> .dw-chart-actions),
+.device-page section:has(.dw-export-button),
+.device-page article:has(.dw-export-button),
+.device-page div:has(> .dw-export-button),
+.device-page section:has(.history-filter-grid),
+.device-page article:has(.history-filter-grid),
+.device-page div:has(> .history-filter-grid) {
+  display: none !important;
+}
+
+/* ---------------------------------------------------------
+   2) Hide Healthy banner under Device Detail tabs
+--------------------------------------------------------- */
+
+/*
+  แบบตรง class
+*/
+.device-page .devices-v3-health-banner,
+.device-page .device-health-banner,
+.device-page .device-status-banner,
+.device-page .device-telemetry-banner,
+.device-page .device-telemetry-status,
+.device-page .device-health-strip,
+.device-page .device-status-strip,
+.device-page .detail-health-banner,
+.device-page .detail-status-banner,
+.device-page [class*='health-banner'],
+.device-page [class*='status-banner'],
+.device-page [class*='telemetry-banner'],
+.device-page [class*='telemetry-status'],
+.device-page [class*='health-strip'],
+.device-page [class*='status-strip'] {
+  display: none !important;
+}
+
+/*
+  แบบตามตำแหน่งจากรูป:
+  tab bar -> healthy banner -> overview card
+
+  ซ่อน element แรกหลัง tablist เฉพาะถ้ามันไม่ใช่ tab panel หลัก
+*/
+.device-page [role='tablist'] + section:not([class*='tab-panel']),
+.device-page [role='tablist'] + div:not([class*='tab-panel']),
+.device-page [role='tablist'] + article:not([class*='tab-panel']),
+.device-detail-page [role='tablist'] + section:not([class*='tab-panel']),
+.device-detail-page [role='tablist'] + div:not([class*='tab-panel']),
+.device-detail-page [role='tablist'] + article:not([class*='tab-panel']),
+.device-detail-v2-page [role='tablist'] + section:not([class*='tab-panel']),
+.device-detail-v2-page [role='tablist'] + div:not([class*='tab-panel']),
+.device-detail-v2-page [role='tablist'] + article:not([class*='tab-panel']) {
+  display: none !important;
+}
+
+/* ถ้า tab bar ไม่ได้ใช้ role=tablist แต่มี class tabs */
+.device-page [class*='tabs'] + section:not([class*='tab-panel']),
+.device-page [class*='tabs'] + div:not([class*='tab-panel']),
+.device-page [class*='tabs'] + article:not([class*='tab-panel']),
+.device-detail-page [class*='tabs'] + section:not([class*='tab-panel']),
+.device-detail-page [class*='tabs'] + div:not([class*='tab-panel']),
+.device-detail-page [class*='tabs'] + article:not([class*='tab-panel']) {
+  display: none !important;
+}
+
+/* ---------------------------------------------------------
+   3) Firmware font smaller
+   From screenshot Firmware is the 5th stat card.
+   Some older layouts use 3rd card.
+--------------------------------------------------------- */
+
+.device-page .dw-page-stat-grid > :nth-child(5) strong,
+.device-page .device-detail-stat-grid > :nth-child(5) strong,
+.device-page .device-detail-state-grid > :nth-child(5) strong,
+.device-page .device-detail-stats-grid > :nth-child(5) strong,
+.device-page .device-detail-status-grid > :nth-child(5) strong,
+.device-page .device-detail-summary-grid > :nth-child(5) strong,
+.device-page .device-detail-overview-grid > :nth-child(5) strong,
+.device-page [class*='stat-grid'] > :nth-child(5) strong,
+.device-page [class*='state-grid'] > :nth-child(5) strong,
+.device-page [class*='summary-grid'] > :nth-child(5) strong,
+.device-page [class*='overview-grid'] > :nth-child(5) strong,
+.device-page .devices-v3-overview-grid > :nth-child(3) strong,
+.device-page .devices-v3-overview-grid > :nth-child(5) strong,
+.device-detail-page [class*='stat-grid'] > :nth-child(5) strong,
+.device-detail-v2-page [class*='stat-grid'] > :nth-child(5) strong,
+.device-detail-page-v2 [class*='stat-grid'] > :nth-child(5) strong {
+  font-size: var(--device-detail-firmware-font) !important;
+  line-height: 1.08 !important;
+  letter-spacing: -0.035em !important;
+  overflow-wrap: anywhere !important;
+  word-break: break-word !important;
+}
+
+.device-page .dw-page-stat-grid > :nth-child(5) span,
+.device-page .dw-page-stat-grid > :nth-child(5) small,
+.device-page .dw-page-stat-grid > :nth-child(5) p,
+.device-page [class*='stat-grid'] > :nth-child(5) span,
+.device-page [class*='stat-grid'] > :nth-child(5) small,
+.device-page [class*='stat-grid'] > :nth-child(5) p,
+.device-page [class*='overview-grid'] > :nth-child(5) span,
+.device-page [class*='overview-grid'] > :nth-child(5) small,
+.device-page [class*='overview-grid'] > :nth-child(5) p,
+.device-page .devices-v3-overview-grid > :nth-child(3) span,
+.device-page .devices-v3-overview-grid > :nth-child(3) small,
+.device-page .devices-v3-overview-grid > :nth-child(3) p,
+.device-page .devices-v3-overview-grid > :nth-child(5) span,
+.device-page .devices-v3-overview-grid > :nth-child(5) small,
+.device-page .devices-v3-overview-grid > :nth-child(5) p {
+  font-size: 11px !important;
+}
+
+/* ---------------------------------------------------------
+   4) Tighten gaps after removing cards
+--------------------------------------------------------- */
+
+.device-page .devices-v2-config,
+.device-page .devices-v3-detail-card,
+.device-page [class*='device-detail'],
+.device-detail-page,
+.device-detail-v2-page,
+.device-detail-page-v2 {
+  gap: 16px !important;
+}
+
+@media (max-width: 560px) {
+  .device-page,
+  .device-detail-page,
+  .device-detail-v2-page,
+  .device-detail-page-v2 {
+    --device-detail-firmware-font: 20px;
+  }
+}

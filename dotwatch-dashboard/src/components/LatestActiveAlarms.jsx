@@ -73,12 +73,17 @@ function LatestActiveAlarms({ limit = 6 }) {
     <section className="app-card latest-active-alarms-card">
       <div className="latest-active-alarms-header">
         <div>
-          <span className="page-eyebrow">Live Alarm State</span>
           <h2>Latest Active Alarms</h2>
           <p>แสดง Alarm ที่ยัง Active อยู่จาก alarm_states</p>
         </div>
 
-        <span className={alarms.length > 0 ? 'alarm-live-badge danger' : 'alarm-live-badge healthy'}>
+        <span
+          className={
+            alarms.length > 0
+              ? 'alarm-live-badge danger'
+              : 'alarm-live-badge healthy'
+          }
+        >
           {alarms.length} Active
         </span>
       </div>
@@ -107,7 +112,11 @@ function LatestActiveAlarms({ limit = 6 }) {
 
               <div className="latest-active-alarm-main">
                 <div className="latest-active-alarm-title">
-                  <strong>{alarm.device_name || alarm.device_code || `Device ${alarm.device_id}`}</strong>
+                  <strong>
+                    {alarm.device_name ||
+                      alarm.device_code ||
+                      `Device ${alarm.device_id}`}
+                  </strong>
                   <span>{alarm.state || alarm.severity}</span>
                 </div>
 
@@ -121,7 +130,8 @@ function LatestActiveAlarms({ limit = 6 }) {
                 <small>
                   Current {formatValue(alarm.current_value, alarm.unit)}
                   {' • '}
-                  Updated {formatRelativeTime(alarm.updated_at || alarm.triggered_at)}
+                  Updated{' '}
+                  {formatRelativeTime(alarm.updated_at || alarm.triggered_at)}
                 </small>
               </div>
             </article>

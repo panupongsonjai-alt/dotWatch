@@ -440,8 +440,8 @@ function Dashboard({ onOpenDevice }) {
         />
       </section>
 
-      <section className="app-card dashboard-data-overview-card live-metrics-overview-card">
-        <div className="app-section-title dashboard-section-title-row live-metrics-overview-header">
+      <section className="app-card dashboard-unified-section dashboard-data-overview-card live-metrics-overview-card">
+        <div className="app-section-title dashboard-section-title-row dashboard-unified-section-header live-metrics-overview-header">
           <div>
             <h2>Data Overview</h2>
             <p>
@@ -449,7 +449,7 @@ function Dashboard({ onOpenDevice }) {
             </p>
           </div>
 
-          <span className="device-count-badge live-metrics-count-badge">
+          <span className="device-count-badge dashboard-unified-section-badge live-metrics-count-badge">
             {dataOverviewMetrics.length} Metrics
           </span>
         </div>
@@ -492,14 +492,14 @@ function Dashboard({ onOpenDevice }) {
       </section>
 
       {dashboardDisplay.showDeviceOverview && (
-          <section className="app-card devices-overview-panel dashboard-devices-card">
-            <div className="app-section-title dashboard-section-title-row">
+          <section className="app-card dashboard-unified-section devices-overview-panel dashboard-devices-card">
+            <div className="app-section-title dashboard-section-title-row dashboard-unified-section-header">
               <div>
                 <h2>Devices Overview</h2>
                 <p>ภาพรวมสถานะอุปกรณ์ทั้งหมด</p>
               </div>
 
-              <span className="device-count-badge">
+              <span className="device-count-badge dashboard-unified-section-badge">
                 {devices.length} Devices
               </span>
             </div>
@@ -555,20 +555,33 @@ function Dashboard({ onOpenDevice }) {
       )}
 
       {dashboardDisplay.showDeviceMap && (
-        <section className="app-card dashboard-map-card-v2">
-          <Suspense
-            fallback={
-              <div className="dashboard-map-loading">
-                <div className="dashboard-map-loading-icon" />
-                <div>
-                  <strong>Loading device map</strong>
-                  <p>กำลังโหลดแผนที่และตำแหน่งอุปกรณ์</p>
+        <section className="app-card dashboard-unified-section dashboard-map-card-v2">
+          <div className="app-section-title dashboard-section-title-row dashboard-unified-section-header">
+            <div>
+              <h2>Device Map</h2>
+              <p>แสดงตำแหน่ง Device และสถานะล่าสุดบนแผนที่</p>
+            </div>
+
+            <span className="device-count-badge dashboard-unified-section-badge">
+              {devices.length} Locations
+            </span>
+          </div>
+
+          <div className="dashboard-unified-map-frame">
+            <Suspense
+              fallback={
+                <div className="dashboard-map-loading">
+                  <div className="dashboard-map-loading-icon" />
+                  <div>
+                    <strong>Loading device map</strong>
+                    <p>กำลังโหลดแผนที่และตำแหน่งอุปกรณ์</p>
+                  </div>
                 </div>
-              </div>
-            }
-          >
-            <DeviceMap devices={devices} />
-          </Suspense>
+              }
+            >
+              <DeviceMap devices={devices} />
+            </Suspense>
+          </div>
         </section>
       )}
 

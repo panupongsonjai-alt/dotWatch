@@ -27,9 +27,6 @@ const DeviceMetricsTab = lazy(
 const DeviceTimelineTab = lazy(
   () => import('../components/device-detail/DeviceTimelineTab.jsx')
 )
-const DeviceInformationTab = lazy(
-  () => import('../components/device-detail/DeviceInformationTab.jsx')
-)
 
 function getReadingId(reading) {
   return reading?.id ?? reading?.device_id ?? reading?.deviceId
@@ -328,7 +325,6 @@ function DeviceDetail({ deviceId, onBack }) {
     { id: 'overview', label: 'Overview', count: null },
     { id: 'metrics', label: 'Metrics', count: metricSummary.total },
     { id: 'timeline', label: 'Timeline', count: timeline.length },
-    { id: 'information', label: 'Information', count: null },
   ]
 
   if (loading) {
@@ -415,11 +411,13 @@ function DeviceDetail({ deviceId, onBack }) {
           hint="Current session"
           tone={realtimeAlarms.length > 0 ? 'danger' : 'success'}
         />
-        <StatCard
-          label="Firmware"
-          value={device.firmware_version || '--'}
-          hint="Current version"
-        />
+        <div className="device-detail-firmware-stat">
+          <StatCard
+            label="Firmware"
+            value={device.firmware_version || '--'}
+            hint="Current version"
+          />
+        </div>
       </section>
 
       <nav className="device-detail-tabs" aria-label="Device detail sections">
@@ -438,7 +436,7 @@ function DeviceDetail({ deviceId, onBack }) {
 
       <Suspense fallback={<TabLoading />}>
         {activeTab === 'overview' && (
-          <DeviceOverviewTab device={device} deviceId={deviceId} />
+          <DeviceOverviewTab device={device} />
         )}
 
         {activeTab === 'metrics' && (
@@ -450,10 +448,6 @@ function DeviceDetail({ deviceId, onBack }) {
         )}
 
         {activeTab === 'timeline' && <DeviceTimelineTab timeline={timeline} />}
-
-        {activeTab === 'information' && (
-          <DeviceInformationTab device={device} />
-        )}
       </Suspense>
     </div>
   )

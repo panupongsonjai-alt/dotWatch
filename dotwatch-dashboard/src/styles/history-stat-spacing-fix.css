@@ -3,12 +3,6 @@
    Align History KPI spacing with Dashboard / Devices
 ========================================================= */
 
-/*
-  สำคัญ:
-  ไฟล์นี้ต้องถูก import ท้าย styles.css หลัง history.css
-  เพื่อ override margin/gap เดิมของหน้า History
-*/
-
 .history-page-v2,
 .page.app-page.history-page-v2 {
   display: grid !important;

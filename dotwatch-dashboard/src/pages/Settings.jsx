@@ -3,9 +3,18 @@ import { PageHeader, SectionHeader, StatCard } from '../components/common'
 
 const ACCENT_OPTIONS = [
   { value: 'blue', label: 'Blue', color: '#2563eb' },
-  { value: 'emerald', label: 'Emerald', color: '#10b981' },
+  { value: 'sky', label: 'Sky', color: '#0ea5e9' },
   { value: 'cyan', label: 'Cyan', color: '#06b6d4' },
+  { value: 'teal', label: 'Teal', color: '#14b8a6' },
+  { value: 'emerald', label: 'Emerald', color: '#10b981' },
+  { value: 'lime', label: 'Lime', color: '#84cc16' },
+  { value: 'amber', label: 'Amber', color: '#f59e0b' },
+  { value: 'orange', label: 'Orange', color: '#f97316' },
   { value: 'red', label: 'dotWatch Red', color: '#ef4444' },
+  { value: 'rose', label: 'Rose', color: '#f43f5e' },
+  { value: 'pink', label: 'Pink', color: '#ec4899' },
+  { value: 'violet', label: 'Violet', color: '#8b5cf6' },
+  { value: 'indigo', label: 'Indigo', color: '#6366f1' },
 ]
 
 const DENSITY_OPTIONS = [
@@ -135,7 +144,7 @@ function Settings() {
           <section className="app-card settings-v3-card">
             <SectionHeader
               title="Interface Preferences"
-              description="Theme ให้ใช้ปุ่มไอคอนด้านบนเป็นจุดเดียว ส่วนนี้ใช้สำหรับปรับ Accent Color และความแน่นของ UI"
+              description="เลือกสีหลักของระบบ dotWatch Dashboard โดยไม่กระทบปุ่ม Dark / Light Theme ด้านบน"
             />
 
             <div className="settings-v3-accent-grid">
@@ -143,12 +152,15 @@ function Settings() {
                 <button
                   key={option.value}
                   type="button"
-                  className={`settings-v3-accent ${
+                  className={`settings-v3-accent settings-v3-accent-option ${
                     accent === option.value ? 'active' : ''
                   }`}
                   onClick={() => setAccent(option.value)}
                 >
-                  <span style={{ background: option.color }} />
+                  <span
+                    className="settings-v3-accent-dot"
+                    style={{ background: option.color }}
+                  />
                   <strong>{option.label}</strong>
                 </button>
               ))}
