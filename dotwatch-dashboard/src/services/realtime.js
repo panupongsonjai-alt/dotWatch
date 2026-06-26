@@ -15,6 +15,7 @@ const listeners = new Set()
 const statusListeners = new Set()
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:4000'
 const MAX_RECONNECT_DELAY = 15_000
+const MAX_RECONNECT_ATTEMPTS = 8
 const HEARTBEAT_INTERVAL = 25_000
 
 async function getRealtimeToken() {
@@ -138,6 +139,13 @@ function scheduleReconnect() {
   if (!auth.currentUser) return
   if (reconnectTimer) return
 
+  if (reconnectAttempt >= MAX_RECONNECT_ATTEMPTS) {
+    shouldReconnect = false
+    lastError = 'Realtime reconnect limit reached'
+    notifyStatusListeners()
+    return
+  }
+
   const delay = Math.min(1000 * 2 ** reconnectAttempt, MAX_RECONNECT_DELAY)
   reconnectAttempt += 1
 
@@ -254,11 +262,27 @@ function openSocket(userId) {
     notifyStatusListeners()
   }
 
-  socket.onclose = () => {
+  socket.onclose = (event) => {
     console.log('Realtime disconnected')
     stopHeartbeat()
     socket = null
     lastDisconnectedAt = new Date().toISOString()
+
+    if (event?.code === 1008) {
+      shouldReconnect = false
+      reconnectAttempt = 0
+      lastError = event.reason || 'Realtime authentication rejected'
+
+      window.dispatchEvent(
+        new CustomEvent('dotwatchUnauthorized', {
+          detail: {
+            source: 'realtime',
+            message: lastError,
+          },
+        })
+      )
+    }
+
     notifyStatusListeners()
     scheduleReconnect()
   }

@@ -1,51 +1,167 @@
 import { auth } from './firebase'
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:4000'
+const API_URL = normalizeApiUrl(
+  import.meta.env.VITE_API_URL || 'http://localhost:4000'
+)
 
-async function getToken() {
+const REQUEST_TIMEOUT_MS = Number(
+  import.meta.env.VITE_REQUEST_TIMEOUT_MS || 15000
+)
+
+function normalizeApiUrl(value) {
+  const rawValue = String(value || '').trim().replace(/\/$/, '')
+
+  if (!rawValue) {
+    throw new Error('Missing VITE_API_URL')
+  }
+
+  if (!/^https?:\/\//.test(rawValue)) {
+    throw new Error('VITE_API_URL must start with http:// or https://')
+  }
+
+  if (
+    window.location.protocol === 'https:' &&
+    rawValue.startsWith('http://') &&
+    !rawValue.includes('localhost') &&
+    !rawValue.includes('127.0.0.1')
+  ) {
+    throw new Error('Insecure API URL is blocked on HTTPS pages')
+  }
+
+  return rawValue
+}
+
+function assertApiPath(path) {
+  if (typeof path !== 'string' || !path.startsWith('/api/')) {
+    throw new Error('Invalid API path')
+  }
+
+  if (/^https?:\/\//i.test(path)) {
+    throw new Error('Absolute API paths are not allowed')
+  }
+}
+
+function createRequestId() {
+  if (crypto?.randomUUID) {
+    return crypto.randomUUID()
+  }
+
+  return `dw-${Date.now()}-${Math.random().toString(16).slice(2)}`
+}
+
+function dispatchAuthError(status, data) {
+  window.dispatchEvent(
+    new CustomEvent('dotwatchApiAuthError', {
+      detail: {
+        status,
+        message: data?.message || data?.error || 'Authentication error',
+      },
+    })
+  )
+
+  if (status === 401) {
+    window.dispatchEvent(
+      new CustomEvent('dotwatchUnauthorized', {
+        detail: {
+          status,
+          message: data?.message || data?.error || 'Unauthorized',
+        },
+      })
+    )
+  }
+}
+
+async function getToken({ forceRefresh = false } = {}) {
   const user = auth.currentUser
 
   if (!user) {
     throw new Error('User not logged in')
   }
 
-  return user.getIdToken()
+  return user.getIdToken(forceRefresh)
+}
+
+async function parseResponseBody(response) {
+  const text = await response.text()
+
+  if (!text) return null
+
+  try {
+    return JSON.parse(text)
+  } catch {
+    return { message: text }
+  }
 }
 
 async function apiFetch(path, options = {}) {
-  const token = await getToken()
+  assertApiPath(path)
 
-  const response = await fetch(`${API_URL}${path}`, {
-    ...options,
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${token}`,
-      ...(options.headers || {}),
-    },
-  })
+  const controller = new AbortController()
+  const timeout = Number.isFinite(REQUEST_TIMEOUT_MS)
+    ? REQUEST_TIMEOUT_MS
+    : 15000
 
-  const text = await response.text()
+  const timeoutId = setTimeout(() => controller.abort(), timeout)
 
-  let data = null
-  try {
-    data = text ? JSON.parse(text) : null
-  } catch {
-    data = { message: text }
-  }
+  async function sendRequest({ forceRefresh = false } = {}) {
+    const token = await getToken({ forceRefresh })
+    const headers = new Headers(options.headers || {})
 
-  if (!response.ok) {
-    console.error('API ERROR:', {
-      path,
-      status: response.status,
-      data,
+    if (!headers.has('Content-Type') && options.body) {
+      headers.set('Content-Type', 'application/json')
+    }
+
+    headers.set('Accept', 'application/json')
+    headers.set('Authorization', `Bearer ${token}`)
+    headers.set('X-dotWatch-Client', 'dashboard')
+    headers.set('X-Request-ID', createRequestId())
+
+    return fetch(`${API_URL}${path}`, {
+      ...options,
+      credentials: 'omit',
+      cache: 'no-store',
+      headers,
+      signal: controller.signal,
     })
-
-    throw new Error(
-      data?.message || data?.error || `API request failed: ${response.status}`
-    )
   }
 
-  return data
+  try {
+    let response = await sendRequest()
+    let data = await parseResponseBody(response)
+
+    if (response.status === 401) {
+      response = await sendRequest({ forceRefresh: true })
+      data = await parseResponseBody(response)
+    }
+
+    if (!response.ok) {
+      if (response.status === 401 || response.status === 403) {
+        dispatchAuthError(response.status, data)
+      }
+
+      if (import.meta.env.DEV) {
+        console.error('API ERROR:', {
+          path,
+          status: response.status,
+          data,
+        })
+      }
+
+      throw new Error(
+        data?.message || data?.error || `API request failed: ${response.status}`
+      )
+    }
+
+    return data
+  } catch (error) {
+    if (error.name === 'AbortError') {
+      throw new Error(`API request timeout after ${timeout}ms`)
+    }
+
+    throw error
+  } finally {
+    clearTimeout(timeoutId)
+  }
 }
 
 export function getDevices() {
@@ -53,7 +169,7 @@ export function getDevices() {
 }
 
 export function getDevice(id) {
-  return apiFetch(`/api/devices/${id}`)
+  return apiFetch(`/api/devices/${encodeURIComponent(id)}`)
 }
 
 export function addDevice({ deviceCode, name, deviceSecret, modelId }) {
@@ -69,33 +185,33 @@ export function addDevice({ deviceCode, name, deviceSecret, modelId }) {
 }
 
 export function updateDeviceName(id, name) {
-  return apiFetch(`/api/devices/${id}`, {
+  return apiFetch(`/api/devices/${encodeURIComponent(id)}`, {
     method: 'PUT',
     body: JSON.stringify({ name }),
   })
 }
 
 export function updateDeviceGroup(id, groupName) {
-  return apiFetch(`/api/devices/${id}`, {
+  return apiFetch(`/api/devices/${encodeURIComponent(id)}`, {
     method: 'PUT',
     body: JSON.stringify({ groupName }),
   })
 }
 
 export function deleteDevice(id) {
-  return apiFetch(`/api/devices/${id}`, {
+  return apiFetch(`/api/devices/${encodeURIComponent(id)}`, {
     method: 'DELETE',
   })
 }
 
 export function resetDeviceSecret(id) {
-  return apiFetch(`/api/devices/${id}/reset-secret`, {
+  return apiFetch(`/api/devices/${encodeURIComponent(id)}/reset-secret`, {
     method: 'POST',
   })
 }
 
 export function updateDeviceLocation(id, data) {
-  return apiFetch(`/api/devices/${id}`, {
+  return apiFetch(`/api/devices/${encodeURIComponent(id)}`, {
     method: 'PUT',
     body: JSON.stringify({
       latitude: data.latitude,
@@ -114,13 +230,16 @@ export function getHistory(deviceId, from, to, metricKey) {
 
   const query = params.toString()
 
-  return apiFetch(`/api/devices/${deviceId}/history${query ? `?${query}` : ''}`)
+  return apiFetch(
+    `/api/devices/${encodeURIComponent(deviceId)}/history${
+      query ? `?${query}` : ''
+    }`
+  )
 }
 
 export function getDeviceHistory(deviceId, from, to, metricKey) {
   return getHistory(deviceId, from, to, metricKey)
 }
-
 
 export function getHistoryByDate(deviceId, date, metricKey) {
   const params = new URLSearchParams()
@@ -130,7 +249,11 @@ export function getHistoryByDate(deviceId, date, metricKey) {
 
   const query = params.toString()
 
-  return apiFetch(`/api/devices/${deviceId}/history${query ? `?${query}` : ''}`)
+  return apiFetch(
+    `/api/devices/${encodeURIComponent(deviceId)}/history${
+      query ? `?${query}` : ''
+    }`
+  )
 }
 
 export function getDeviceHistoryByDate(deviceId, date, metricKey) {
@@ -138,18 +261,18 @@ export function getDeviceHistoryByDate(deviceId, date, metricKey) {
 }
 
 export function getDeviceMetrics(deviceId) {
-  return apiFetch(`/api/devices/${deviceId}/metrics`)
+  return apiFetch(`/api/devices/${encodeURIComponent(deviceId)}/metrics`)
 }
 
 export function saveDeviceMetrics(deviceId, metrics) {
-  return apiFetch(`/api/devices/${deviceId}/metrics`, {
+  return apiFetch(`/api/devices/${encodeURIComponent(deviceId)}/metrics`, {
     method: 'PUT',
     body: JSON.stringify({ metrics }),
   })
 }
 
 export function resetDeviceMetrics(deviceId) {
-  return apiFetch(`/api/devices/${deviceId}/metrics/reset`, {
+  return apiFetch(`/api/devices/${encodeURIComponent(deviceId)}/metrics/reset`, {
     method: 'POST',
   })
 }
@@ -159,11 +282,10 @@ export function getAlarms() {
 }
 
 export function acknowledgeAlarm(id) {
-  return apiFetch(`/api/alarms/${id}/acknowledge`, {
+  return apiFetch(`/api/alarms/${encodeURIComponent(id)}/acknowledge`, {
     method: 'POST',
   })
 }
-
 
 export function getActiveAlarms(limit = 50) {
   const params = new URLSearchParams()
@@ -191,14 +313,14 @@ export function createAlarmRule(data) {
 }
 
 export function updateAlarmRule(id, data) {
-  return apiFetch(`/api/alarm-rules/${id}`, {
+  return apiFetch(`/api/alarm-rules/${encodeURIComponent(id)}`, {
     method: 'PUT',
     body: JSON.stringify(data),
   })
 }
 
 export function deleteAlarmRule(id) {
-  return apiFetch(`/api/alarm-rules/${id}`, {
+  return apiFetch(`/api/alarm-rules/${encodeURIComponent(id)}`, {
     method: 'DELETE',
   })
 }
@@ -208,9 +330,12 @@ export function getDemoTemplates() {
 }
 
 export function createDemoTemplate(templateKey) {
-  return apiFetch(`/api/demo/templates/${templateKey}`, {
-    method: 'POST',
-  })
+  return apiFetch(
+    `/api/demo/templates/${encodeURIComponent(templateKey)}`,
+    {
+      method: 'POST',
+    }
+  )
 }
 
 export function deleteDemoData() {

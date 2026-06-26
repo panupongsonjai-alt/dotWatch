@@ -32,6 +32,11 @@ import DeviceDetail from './pages/DeviceDetail.jsx'
 import Sidebar from './components/Sidebar'
 import Navbar from './components/Navbar'
 import VerifyEmail from './pages/VerifyEmail'
+import {
+  clearSensitiveWorkspaceState,
+  installClientSecurityGuards,
+  sanitizeStoredPreferences,
+} from './utils/clientSecurity'
 
 const PAGE_META = {
   dashboard: {
@@ -140,6 +145,8 @@ function clearWorkspaceRoute() {
   localStorage.removeItem(APP_SELECTED_DEVICE_STORAGE_KEY)
 }
 
+
+sanitizeStoredPreferences()
 
 function applyUiPreferences() {
   const root = document.documentElement
@@ -456,6 +463,33 @@ function App() {
   }, [page, selectedDeviceId])
 
   useEffect(() => {
+    const uninstallSecurityGuards = installClientSecurityGuards()
+
+    function handleUnauthorized() {
+      clearSensitiveWorkspaceState()
+      clearWorkspaceRoute()
+      setSelectedDeviceId(null)
+      setPage('dashboard')
+      logout()
+    }
+
+    function handleSecurityReset() {
+      clearWorkspaceRoute()
+      setSelectedDeviceId(null)
+      setPage('dashboard')
+    }
+
+    window.addEventListener('dotwatchUnauthorized', handleUnauthorized)
+    window.addEventListener('dotwatchSecurityReset', handleSecurityReset)
+
+    return () => {
+      uninstallSecurityGuards()
+      window.removeEventListener('dotwatchUnauthorized', handleUnauthorized)
+      window.removeEventListener('dotwatchSecurityReset', handleSecurityReset)
+    }
+  }, [logout])
+
+  useEffect(() => {
     document.documentElement.setAttribute('data-theme', theme)
     localStorage.setItem('theme', theme)
   }, [theme])
@@ -518,6 +552,7 @@ function App() {
   }, [])
 
   const handleLogout = async () => {
+    clearSensitiveWorkspaceState()
     clearWorkspaceRoute()
     await logout()
     setPage('dashboard')

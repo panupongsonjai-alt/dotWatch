@@ -3043,3 +3043,410 @@
   white-space: nowrap;
 }
 
+/* =========================================================
+   Devices - Remove Selected Tab Header Divider
+   เอาเส้นคั่นใต้หัวข้อของ Selected Device tabs ออก
+========================================================= */
+
+.devices-v3-tab-panel,
+.devices-v3-tab-header,
+.devices-v3-tab-header > div,
+.metric-alarm-panel-easy,
+.metric-alarm-rule-grid-easy {
+  border-top: 0 !important;
+}
+
+.devices-v3-tab-header {
+  border-bottom: 0 !important;
+  box-shadow: none !important;
+}
+
+.devices-v3-tab-header::before,
+.devices-v3-tab-header::after,
+.devices-v3-tab-panel::before,
+.devices-v3-tab-panel::after,
+.metric-alarm-panel-easy::before,
+.metric-alarm-panel-easy::after {
+  display: none !important;
+  content: none !important;
+}
+
+/* เส้นที่มักมาจาก hr หรือ border แรกของ panel หลัง header */
+.devices-v3-tab-panel > hr,
+.devices-v3-tab-panel > .divider,
+.devices-v3-tab-panel > .section-divider,
+.devices-v3-tab-panel > .tab-divider,
+.devices-v3-tab-panel > .metric-alarm-panel-easy:first-child {
+  border-top: 0 !important;
+}
+
+/* เฉพาะแท็บ Alarms: ให้ระยะห่างหลัง header ดูสะอาดแทนการใช้เส้น */
+.devices-v3-tab-panel .metric-alarm-panel-easy {
+  padding-top: 0 !important;
+}
+
+/* =========================================================
+   Devices - Clean Metric Display Fit
+   แก้ Metric Display ไม่ให้ซ้อนหัวข้อและไม่ให้ปุ่มล้นขวา
+========================================================= */
+
+.metric-config-panel-clean {
+  width: 100% !important;
+  max-width: 100% !important;
+  min-width: 0 !important;
+  overflow: visible !important;
+  padding: 16px !important;
+  border-radius: 22px !important;
+}
+
+/* ซ่อน header เดิมถ้า class เก่ายังหลงเหลือ */
+.metric-config-panel-clean .metric-config-header,
+.metric-config-panel-clean .metric-config-table-head-v2,
+.metric-config-panel-clean .metric-config-table-v2 {
+  display: none !important;
+}
+
+.metric-config-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 16px;
+  padding-bottom: 14px;
+  border-bottom: 1px solid var(--border);
+}
+
+.metric-config-toolbar > div {
+  min-width: 0;
+  display: grid;
+  gap: 5px;
+}
+
+.metric-config-toolbar strong {
+  color: var(--text);
+  font-size: 15px;
+  line-height: 1.2;
+  font-weight: 950;
+}
+
+.metric-config-toolbar .ghost-button {
+  flex: 0 0 auto;
+  min-width: 112px;
+}
+
+.metric-config-list-clean {
+  display: grid;
+  gap: 12px;
+  min-width: 0;
+}
+
+.metric-config-card-clean {
+  min-width: 0;
+  display: grid;
+  gap: 14px;
+  padding: 14px;
+  border-radius: 20px;
+  background:
+    linear-gradient(135deg, rgba(37, 99, 235, 0.035), transparent 58%),
+    var(--panel-2);
+  border: 1px solid var(--border);
+}
+
+.metric-config-card-clean-head {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.metric-config-card-clean-head > div {
+  min-width: 0;
+  display: grid;
+  gap: 4px;
+}
+
+.metric-config-card-clean-head span {
+  color: var(--primary);
+  font-size: 10.5px;
+  line-height: 1;
+  font-weight: 950;
+  letter-spacing: 0.075em;
+  text-transform: uppercase;
+}
+
+.metric-config-card-clean-head strong {
+  min-width: 0;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.2;
+  font-weight: 850;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.metric-config-card-clean-grid {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: minmax(180px, 1fr) 92px minmax(140px, 160px) minmax(118px, 136px);
+  gap: 12px;
+  align-items: end;
+}
+
+.metric-config-field {
+  min-width: 0;
+  display: grid;
+  gap: 7px;
+}
+
+.metric-config-field > span {
+  color: var(--muted);
+  font-size: 10.5px;
+  line-height: 1;
+  font-weight: 950;
+  letter-spacing: 0.075em;
+  text-transform: uppercase;
+}
+
+.metric-config-field input {
+  width: 100%;
+  min-width: 0;
+  height: 40px;
+  min-height: 40px;
+  padding: 0 12px;
+  border-radius: 13px;
+  font-size: 13px;
+  font-weight: 850;
+}
+
+.metric-config-field-name input {
+  font-weight: 900;
+}
+
+.metric-config-delete-btn {
+  flex: 0 0 auto;
+  width: 38px !important;
+  height: 38px !important;
+  min-width: 38px !important;
+  min-height: 38px !important;
+  border-radius: 14px !important;
+}
+
+/* Icon dropdown */
+.metric-icon-dropdown {
+  position: relative;
+  width: 100%;
+  min-width: 0;
+}
+
+.metric-icon-dropdown[open] {
+  z-index: 180;
+}
+
+.metric-icon-dropdown-summary {
+  width: 100%;
+  height: 40px;
+  min-height: 40px;
+  padding: 0 10px;
+  border: 1px solid var(--border);
+  border-radius: 13px;
+  background: var(--input, var(--panel));
+  color: var(--text);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  cursor: pointer;
+  list-style: none;
+}
+
+.metric-icon-dropdown-summary::-webkit-details-marker {
+  display: none;
+}
+
+.metric-icon-dropdown-summary::after {
+  content: '⌄';
+  flex: 0 0 auto;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1;
+  margin-left: 8px;
+}
+
+.metric-icon-dropdown-current,
+.metric-icon-dropdown-option {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.metric-icon-dropdown-current svg,
+.metric-icon-dropdown-option svg {
+  flex: 0 0 auto;
+  color: var(--primary);
+}
+
+.metric-icon-dropdown-current span,
+.metric-icon-dropdown-option span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.metric-icon-dropdown-menu {
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 0;
+  right: 0;
+  z-index: 190;
+  max-height: 250px;
+  overflow: auto;
+  display: grid;
+  gap: 4px;
+  padding: 8px;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: var(--panel);
+  box-shadow: 0 18px 45px rgba(2, 6, 23, 0.34);
+}
+
+.metric-icon-dropdown-option {
+  width: 100%;
+  min-height: 34px;
+  padding: 0 9px;
+  border: 0;
+  border-radius: 10px;
+  background: transparent;
+  color: var(--text);
+  text-align: left;
+  cursor: pointer;
+}
+
+.metric-icon-dropdown-option:hover:not(:disabled),
+.metric-icon-dropdown-option.active {
+  color: var(--primary);
+  background: color-mix(in srgb, var(--primary) 13%, transparent);
+}
+
+/* Visible switch */
+.metric-visible-toggle {
+  width: 100%;
+  height: 40px;
+  min-height: 40px;
+  display: inline-grid;
+  grid-template-columns: 24px minmax(0, 1fr);
+  align-items: center;
+  gap: 8px;
+  padding: 0 10px;
+  border-radius: 999px;
+  color: var(--muted);
+  background: var(--panel);
+  border: 1px solid var(--border);
+  font-size: 12px;
+  line-height: 1;
+  font-weight: 950;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.metric-visible-toggle.active {
+  color: var(--success);
+  background: rgba(34, 197, 94, 0.1);
+  border-color: rgba(34, 197, 94, 0.28);
+}
+
+.metric-visible-toggle input {
+  appearance: none;
+  width: 24px;
+  height: 24px;
+  min-height: 24px;
+  margin: 0;
+  display: grid;
+  place-items: center;
+  border-radius: 999px;
+  background: var(--panel-2);
+  border: 1px solid var(--border);
+  cursor: pointer;
+}
+
+.metric-visible-toggle input::after {
+  content: '';
+  width: 7px;
+  height: 11px;
+  border-right: 2px solid transparent;
+  border-bottom: 2px solid transparent;
+  transform: rotate(45deg) translate(-1px, -1px);
+}
+
+.metric-visible-toggle input:checked {
+  background: var(--success);
+  border-color: var(--success);
+}
+
+.metric-visible-toggle input:checked::after {
+  border-color: white;
+}
+
+.metric-visible-toggle > span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.metric-config-footer-actions {
+  width: 100%;
+  max-width: 100%;
+  display: flex !important;
+  justify-content: flex-end !important;
+  align-items: center !important;
+  gap: 10px !important;
+  margin-top: 18px !important;
+  padding-top: 16px !important;
+  border-top: 1px solid var(--border) !important;
+  flex-wrap: wrap !important;
+  overflow: hidden !important;
+}
+
+.metric-config-footer-actions button {
+  min-width: 112px !important;
+}
+
+.metric-save-btn {
+  max-width: 180px;
+}
+
+/* จอแคบ/Panel แคบ: แบ่งเป็น 2 แถว ไม่ล้นขวา */
+@media (max-width: 960px) {
+  .metric-config-card-clean-grid {
+    grid-template-columns: minmax(0, 1fr) 92px;
+  }
+
+  .metric-config-field-icon,
+  .metric-config-field-visible {
+    grid-column: auto;
+  }
+}
+
+@media (max-width: 620px) {
+  .metric-config-toolbar,
+  .metric-config-card-clean-head {
+    display: grid;
+    align-items: stretch;
+  }
+
+  .metric-config-toolbar .ghost-button,
+  .metric-config-delete-btn,
+  .metric-config-footer-actions button {
+    width: 100% !important;
+    max-width: none !important;
+  }
+
+  .metric-config-card-clean-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
