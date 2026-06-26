@@ -406,16 +406,6 @@ function SelectedDevicePanel({
 
           <button
             type="button"
-            className="save-btn"
-            disabled={saving}
-            onClick={() => onResetSecret(selectedDevice)}
-          >
-            <KeyRound size={16} />
-            Reset Secret
-          </button>
-
-          <button
-            type="button"
             className="delete-btn"
             disabled={saving}
             onClick={() => onDeleteDevice(selectedDevice.id)}
@@ -578,16 +568,37 @@ function SelectedDevicePanel({
             </div>
             <div>
               <label>Device Secret</label>
-              <p>ซ่อนเพื่อความปลอดภัย กด Reset เพื่อออก Secret ใหม่</p>
+              <p>ซ่อนเพื่อความปลอดภัย และสามารถออก Secret ใหม่ได้จากส่วนนี้</p>
             </div>
             <div>
               <label>Device ID</label>
               <p>{selectedDevice.id}</p>
             </div>
             <div>
-              <label>Reset Secret</label>
+              <label>Secret Status</label>
               <p>Secret เดิมจะใช้งานไม่ได้ทันทีหลัง Reset</p>
             </div>
+          </section>
+
+          <section className="devices-v3-security-action-card">
+            <div className="devices-v3-security-action-copy">
+              <span className="page-eyebrow">Secret Rotation</span>
+              <h4>Reset Device Secret</h4>
+              <p>
+                ใช้เมื่อต้องการออก Secret ใหม่ให้ Firmware / Gateway เช่น
+                เปลี่ยนอุปกรณ์ หรือสงสัยว่า Secret เดิมไม่ปลอดภัย
+              </p>
+            </div>
+
+            <button
+              type="button"
+              className="save-btn devices-v3-reset-secret-btn"
+              disabled={saving}
+              onClick={() => onResetSecret(selectedDevice)}
+            >
+              <KeyRound size={16} />
+              Reset Secret
+            </button>
           </section>
         </div>
       )}

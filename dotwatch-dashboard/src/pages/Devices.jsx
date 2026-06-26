@@ -6,6 +6,10 @@ import SelectedDevicePanel from '../components/devices/SelectedDevicePanel.jsx'
 import { PageHeader, StatCard } from '../components/common'
 import { getStatus } from '../components/devices/deviceUtils.jsx'
 import {
+  confirmDeleteAction,
+  confirmResetSecretAction,
+} from '../utils/typedConfirm'
+import {
   addDevice,
   createAlarmRule,
   deleteAlarmRule,
@@ -260,7 +264,16 @@ function Devices() {
   }
 
   async function handleDeleteDevice(deviceId) {
-    const ok = confirm('ต้องการลบ Device นี้ใช่ไหม?')
+    const device = devices.find(
+      (item) => String(item.id) === String(deviceId)
+    )
+    const ok = confirmDeleteAction({
+      title: 'Confirm Delete Device',
+      targetName: device?.name || device?.device_code || `Device ID ${deviceId}`,
+      description:
+        'Device นี้จะถูกลบออกจากระบบ รวมถึงข้อมูลที่เกี่ยวข้อง กรุณาพิมพ์ delete เพื่อยืนยัน',
+    })
+
     if (!ok) return
 
     try {
@@ -276,11 +289,12 @@ function Devices() {
   }
 
   async function handleResetSecret(device) {
-    const ok = confirm(
-      `ต้องการ Reset Secret ของ ${
-        device.name || device.device_code
-      } ใช่ไหม?\n\nSecret เดิมจะใช้งานไม่ได้ทันที`
-    )
+    const ok = confirmResetSecretAction({
+      title: 'Confirm Reset Device Secret',
+      targetName: device?.name || device?.device_code || `Device ID ${device?.id}`,
+      description:
+        'Secret เดิมจะใช้งานไม่ได้ทันที และ Firmware / Gateway ต้องใช้ Secret ใหม่ กรุณาพิมพ์ reset secret เพื่อยืนยัน',
+    })
 
     if (!ok) return
 
@@ -397,7 +411,17 @@ function Devices() {
   }
 
   async function handleDeleteAlarmRule(ruleId) {
-    const ok = confirm('ต้องการลบ Alarm Rule นี้ใช่ไหม?')
+    const rule = alarmRules.find((item) => String(item.id) === String(ruleId))
+    const ok = confirmDeleteAction({
+      title: 'Confirm Delete Alarm Rule',
+      targetName:
+        rule?.metric || rule?.metric_key
+          ? `${rule.metric || rule.metric_key} / ${rule.severity || 'rule'}`
+          : `Rule ID ${ruleId}`,
+      description:
+        'Alarm Rule นี้จะถูกลบออกจาก Device กรุณาพิมพ์ delete เพื่อยืนยัน',
+    })
+
     if (!ok) return
 
     try {

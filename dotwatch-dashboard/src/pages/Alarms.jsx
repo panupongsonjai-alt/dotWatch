@@ -19,6 +19,7 @@ import {
   Trash2,
 } from 'lucide-react'
 import { PageHeader, SectionHeader, StatCard } from '../components/common'
+import { confirmDeleteAction } from '../utils/typedConfirm'
 
 function formatDate(value) {
   if (!value) return '--'
@@ -233,7 +234,17 @@ function Alarms() {
   }
 
   async function handleDeleteRule(ruleId) {
-    const ok = confirm('ต้องการลบ Alarm Rule นี้ใช่ไหม?')
+    const rule = rules.find((item) => String(item.id) === String(ruleId))
+    const ok = confirmDeleteAction({
+      title: 'Confirm Delete Alarm Rule',
+      targetName:
+        rule?.metric || rule?.metric_key
+          ? `${rule.metric || rule.metric_key} / ${rule.severity || 'rule'}`
+          : `Rule ID ${ruleId}`,
+      description:
+        'Alarm Rule นี้จะถูกลบออกจากระบบ กรุณาพิมพ์ delete เพื่อยืนยัน',
+    })
+
     if (!ok) return
 
     try {

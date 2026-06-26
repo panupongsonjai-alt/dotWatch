@@ -1815,3 +1815,63 @@
   }
 }
 
+/* =========================================================
+   Devices - Selected Device Security Actions
+   Move Reset Secret from selected header to Security tab
+========================================================= */
+
+.devices-v3-security-action-card {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 18px;
+  padding: 18px;
+  border-radius: 20px;
+  background:
+    linear-gradient(135deg, rgba(245, 158, 11, 0.1), transparent 54%),
+    var(--panel-2);
+  border: 1px solid rgba(245, 158, 11, 0.22);
+}
+
+.devices-v3-security-action-copy {
+  min-width: 0;
+}
+
+.devices-v3-security-action-copy h4 {
+  margin: 6px 0 6px;
+  color: var(--text);
+  font-size: 16px;
+  line-height: 1.25;
+  font-weight: 950;
+  letter-spacing: -0.025em;
+}
+
+.devices-v3-security-action-copy p {
+  margin: 0;
+  max-width: 680px;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.55;
+  font-weight: 750;
+}
+
+.devices-v3-reset-secret-btn {
+  min-width: 152px;
+  white-space: nowrap;
+}
+
+.devices-v3-action-bar {
+  justify-content: flex-end;
+}
+
+@media (max-width: 720px) {
+  .devices-v3-security-action-card {
+    grid-template-columns: 1fr;
+    align-items: stretch;
+  }
+
+  .devices-v3-reset-secret-btn {
+    width: 100%;
+  }
+}
+

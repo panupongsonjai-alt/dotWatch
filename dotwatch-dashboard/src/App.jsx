@@ -98,6 +98,49 @@ const PAGE_META = {
   },
 }
 
+const APP_PAGE_STORAGE_KEY = 'dotwatchActivePage'
+const APP_SELECTED_DEVICE_STORAGE_KEY = 'dotwatchSelectedDeviceId'
+
+const ROUTE_PAGE_KEYS = Object.keys(PAGE_META)
+
+function getStoredPage() {
+  const storedPage = localStorage.getItem(APP_PAGE_STORAGE_KEY)
+
+  if (!storedPage || !ROUTE_PAGE_KEYS.includes(storedPage)) {
+    return 'dashboard'
+  }
+
+  if (
+    storedPage === 'device-detail' &&
+    !localStorage.getItem(APP_SELECTED_DEVICE_STORAGE_KEY)
+  ) {
+    return 'dashboard'
+  }
+
+  return storedPage
+}
+
+function getStoredSelectedDeviceId() {
+  return localStorage.getItem(APP_SELECTED_DEVICE_STORAGE_KEY) || null
+}
+
+function saveWorkspaceRoute(page, deviceId = null) {
+  localStorage.setItem(APP_PAGE_STORAGE_KEY, page)
+
+  if (deviceId) {
+    localStorage.setItem(APP_SELECTED_DEVICE_STORAGE_KEY, String(deviceId))
+    return
+  }
+
+  localStorage.removeItem(APP_SELECTED_DEVICE_STORAGE_KEY)
+}
+
+function clearWorkspaceRoute() {
+  localStorage.removeItem(APP_PAGE_STORAGE_KEY)
+  localStorage.removeItem(APP_SELECTED_DEVICE_STORAGE_KEY)
+}
+
+
 function applyUiPreferences() {
   const root = document.documentElement
 
@@ -392,9 +435,9 @@ function WorkspaceHelp({ open, onClose, onNavigate }) {
 function App() {
   const { user, authLoading, logout } = useAuth()
 
-  const [page, setPage] = useState('dashboard')
+  const [page, setPage] = useState(getStoredPage)
   const [theme, setTheme] = useState(localStorage.getItem('theme') || 'dark')
-  const [selectedDeviceId, setSelectedDeviceId] = useState(null)
+  const [selectedDeviceId, setSelectedDeviceId] = useState(getStoredSelectedDeviceId)
   const [commandPaletteOpen, setCommandPaletteOpen] = useState(false)
   const [workspaceHelpOpen, setWorkspaceHelpOpen] = useState(false)
 
@@ -407,6 +450,10 @@ function App() {
     () => PAGE_META[page] || PAGE_META.dashboard,
     [page]
   )
+
+  useEffect(() => {
+    saveWorkspaceRoute(page, selectedDeviceId)
+  }, [page, selectedDeviceId])
 
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', theme)
@@ -471,6 +518,7 @@ function App() {
   }, [])
 
   const handleLogout = async () => {
+    clearWorkspaceRoute()
     await logout()
     setPage('dashboard')
     setSelectedDeviceId(null)
@@ -479,6 +527,7 @@ function App() {
   function handleSetPage(nextPage) {
     if (nextPage !== 'device-detail') {
       setSelectedDeviceId(null)
+      saveWorkspaceRoute(nextPage)
     }
 
     setPage(nextPage)
@@ -486,11 +535,13 @@ function App() {
 
   function openDeviceDetail(deviceId) {
     setSelectedDeviceId(deviceId)
+    saveWorkspaceRoute('device-detail', deviceId)
     setPage('device-detail')
   }
 
   function backToDashboard() {
     setSelectedDeviceId(null)
+    saveWorkspaceRoute('dashboard')
     setPage('dashboard')
   }
 

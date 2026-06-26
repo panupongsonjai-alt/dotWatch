@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { confirmDeleteAction } from "../utils/typedConfirm";
 import {
   getDemoTemplates,
   createDemoTemplate,
@@ -44,7 +45,12 @@ function DemoTemplatesPanel({ onDone }) {
   }
 
   async function handleDeleteDemo() {
-    const confirmed = window.confirm("ต้องการลบ Demo Devices ทั้งหมดใช่ไหม?");
+    const confirmed = confirmDeleteAction({
+      title: "Confirm Delete Demo Devices",
+      targetName: "Demo Devices",
+      description:
+        "Demo Devices ทั้งหมดจะถูกลบ กรุณาพิมพ์ delete เพื่อยืนยัน",
+    });
 
     if (!confirmed) return;
 

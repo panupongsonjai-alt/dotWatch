@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { confirmDeleteAction } from "../utils/typedConfirm";
 import {
   generateDemoAlarmNow,
   generateDemoOfflineNow,
@@ -30,9 +31,12 @@ function DemoActionsCard({ onDone }) {
   }
 
   async function handleClearDemo() {
-    const confirmed = window.confirm(
-      "ต้องการลบ Demo Devices และข้อมูล Demo ทั้งหมดใช่ไหม?",
-    );
+    const confirmed = confirmDeleteAction({
+      title: "Confirm Delete Demo Data",
+      targetName: "Demo Devices",
+      description:
+        "Demo Devices และข้อมูล Demo ทั้งหมดจะถูกลบ กรุณาพิมพ์ delete เพื่อยืนยัน",
+    });
 
     if (!confirmed) return;
 

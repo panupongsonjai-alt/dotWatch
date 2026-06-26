@@ -16,6 +16,7 @@ import {
 import { useDeviceMetrics } from '../hooks/useDeviceMetrics'
 import { createBlankMetric } from '../utils/metricDisplayConfig'
 import { METRIC_ICON_OPTIONS } from '../utils/metricIcons'
+import { confirmDeleteAction } from '../utils/typedConfirm'
 
 const ICON_COMPONENTS = {
   Activity,
@@ -126,6 +127,17 @@ export default function MetricConfigPanel({ deviceId }) {
   }
 
   function removeMetric(indexToRemove) {
+    const metric = draftMetrics[indexToRemove]
+    const ok = confirmDeleteAction({
+      title: 'Confirm Delete Metric',
+      targetName:
+        metric?.metric_name || metric?.metric_key || `Metric ${indexToRemove + 1}`,
+      description:
+        'Metric นี้จะถูกลบออกจากรายการ Draft กรุณาพิมพ์ delete เพื่อยืนยัน',
+    })
+
+    if (!ok) return
+
     setDraftMetrics((currentMetrics = []) =>
       reindexMetrics(
         currentMetrics.filter((_, index) => index !== indexToRemove)

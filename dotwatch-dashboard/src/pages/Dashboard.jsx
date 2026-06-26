@@ -412,6 +412,8 @@ function Dashboard({ onOpenDevice }) {
       <PageHeader
         eyebrow="Operations Center"
         title="dotWatch Dashboard"
+        description="ศูนย์กลางสำหรับติดตามสถานะ Device, ค่าล่าสุดของ Sensor, ตำแหน่งบนแผนที่ และ Alarm ที่กำลัง Active แบบ Realtime"
+
       />
 
       <section className="dw-page-stat-grid dashboard-kpi-grid dashboard-health-kpi-grid">
