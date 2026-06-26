@@ -14,3 +14,13 @@
 @import './styles/pages/settings.css';
 @import './styles/pages/system-health.css';
 @import './styles/profile-remove-recent-activity.css';
+@import './styles/design-layout-unify.css';
+@import './styles/history-stat-spacing-fix.css';
+@import './styles/device-detail-stat-row-fix.css';
+@import './styles/device-detail-final-cleanup.css';
+@import './styles/device-detail-tabs-unify.css';
+@import './styles/device-detail-timeline-font-fix.css';
+@import './styles/device-detail-timeline-header-fix.css';
+@import './styles/design-consistency-final.css';
+@import './styles/dashboard-live-value-fix.css';
+@import './styles/design-latest-guard.css';

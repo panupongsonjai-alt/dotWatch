@@ -241,8 +241,10 @@ function Dashboard({ onOpenDevice }) {
     critical: 0,
   })
   const [dashboardDisplay, setDashboardDisplay] = useState({
+    showDataOverview: true,
     showDeviceOverview: true,
     showDeviceMap: true,
+    showLatestActiveAlarms: true,
   })
 
   const { addAlarm } = useAlarm()
@@ -289,9 +291,12 @@ function Dashboard({ onOpenDevice }) {
 
   function loadDisplaySettings() {
     setDashboardDisplay({
+      showDataOverview: localStorage.getItem('showDataOverview') !== 'false',
       showDeviceOverview:
         localStorage.getItem('showDeviceOverview') !== 'false',
       showDeviceMap: localStorage.getItem('showDeviceMap') !== 'false',
+      showLatestActiveAlarms:
+        localStorage.getItem('showLatestActiveAlarms') !== 'false',
     })
   }
 
@@ -440,7 +445,8 @@ function Dashboard({ onOpenDevice }) {
         />
       </section>
 
-      <section className="app-card dashboard-unified-section dashboard-data-overview-card live-metrics-overview-card">
+      {dashboardDisplay.showDataOverview && (
+        <section className="app-card dashboard-unified-section dashboard-data-overview-card live-metrics-overview-card">
         <div className="app-section-title dashboard-section-title-row dashboard-unified-section-header live-metrics-overview-header">
           <div>
             <h2>Data Overview</h2>
@@ -489,7 +495,8 @@ function Dashboard({ onOpenDevice }) {
             ))}
           </div>
         )}
-      </section>
+        </section>
+      )}
 
       {dashboardDisplay.showDeviceOverview && (
           <section className="app-card dashboard-unified-section devices-overview-panel dashboard-devices-card">
@@ -585,10 +592,12 @@ function Dashboard({ onOpenDevice }) {
         </section>
       )}
 
-      <section className="dashboard-alerts-under-map">
-        <LatestActiveAlarms limit={6} />
-        <AlarmPanel />
-      </section>
+      {dashboardDisplay.showLatestActiveAlarms && (
+        <section className="dashboard-alerts-under-map">
+          <LatestActiveAlarms limit={6} />
+          <AlarmPanel />
+        </section>
+      )}
     </div>
   )
 }

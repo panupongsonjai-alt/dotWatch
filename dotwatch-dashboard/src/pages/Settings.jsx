@@ -40,8 +40,10 @@ function applyUiSettings({ accent, density, reduceMotion, compactCards }) {
 }
 
 function Settings() {
+  const [showDataOverview, setShowDataOverview] = useState(true)
   const [showDeviceOverview, setShowDeviceOverview] = useState(true)
   const [showDeviceMap, setShowDeviceMap] = useState(true)
+  const [showLatestActiveAlarms, setShowLatestActiveAlarms] = useState(true)
   const [accent, setAccent] = useState('blue')
   const [density, setDensity] = useState('comfortable')
   const [reduceMotion, setReduceMotion] = useState(false)
@@ -53,8 +55,12 @@ function Settings() {
     const nextReduceMotion =
       localStorage.getItem('dotwatchReduceMotion') === 'true'
 
+    setShowDataOverview(localStorage.getItem('showDataOverview') !== 'false')
     setShowDeviceOverview(localStorage.getItem('showDeviceOverview') !== 'false')
     setShowDeviceMap(localStorage.getItem('showDeviceMap') !== 'false')
+    setShowLatestActiveAlarms(
+      localStorage.getItem('showLatestActiveAlarms') !== 'false'
+    )
     setAccent(nextAccent)
     setDensity(nextDensity)
     setReduceMotion(nextReduceMotion)
@@ -89,18 +95,36 @@ function Settings() {
       {
         label: 'Dashboard',
         value:
-          [showDeviceOverview && 'Overview', showDeviceMap && 'Map']
+          [
+            showDataOverview && 'Data',
+            showDeviceOverview && 'Devices',
+            showDeviceMap && 'Map',
+            showLatestActiveAlarms && 'Alarms',
+          ]
             .filter(Boolean)
             .join(' + ') || 'Minimal',
         tone: 'success',
       },
     ],
-    [accent, density, reduceMotion, showDeviceOverview, showDeviceMap]
+    [
+      accent,
+      density,
+      reduceMotion,
+      showDataOverview,
+      showDeviceOverview,
+      showDeviceMap,
+      showLatestActiveAlarms,
+    ]
   )
 
   function handleSave() {
+    localStorage.setItem('showDataOverview', String(showDataOverview))
     localStorage.setItem('showDeviceOverview', String(showDeviceOverview))
     localStorage.setItem('showDeviceMap', String(showDeviceMap))
+    localStorage.setItem(
+      'showLatestActiveAlarms',
+      String(showLatestActiveAlarms)
+    )
     localStorage.setItem('dotwatchAccent', accent)
     localStorage.setItem('dotwatchDensity', density)
     localStorage.setItem('dotwatchReduceMotion', String(reduceMotion))
@@ -170,14 +194,28 @@ function Settings() {
           <section className="app-card settings-v3-card">
             <SectionHeader
               title="Dashboard Display"
-              description="เลือก Widget ที่ต้องการแสดงบนหน้า Dashboard"
+              description="เลือกส่วนที่ต้องการให้แสดงบนหน้า Dashboard"
             />
 
-            <div className="settings-v3-toggle-list">
+            <div className="settings-v3-toggle-list dashboard-display-toggle-list">
+              <label className="settings-v3-toggle-item">
+                <div>
+                  <strong>Data Overview</strong>
+                  <span>แสดงค่าล่าสุดของ Metric ที่เปิด Visible ใน Dashboard</span>
+                </div>
+                <input
+                  type="checkbox"
+                  checked={showDataOverview}
+                  onChange={(event) =>
+                    setShowDataOverview(event.target.checked)
+                  }
+                />
+              </label>
+
               <label className="settings-v3-toggle-item">
                 <div>
                   <strong>Devices Overview</strong>
-                  <span>แสดงการ์ดค่าล่าสุดของอุปกรณ์ทั้งหมดใน Dashboard</span>
+                  <span>แสดงภาพรวมสถานะอุปกรณ์ทั้งหมดใน Dashboard</span>
                 </div>
                 <input
                   type="checkbox"
@@ -191,12 +229,26 @@ function Settings() {
               <label className="settings-v3-toggle-item">
                 <div>
                   <strong>Device Map</strong>
-                  <span>แสดงตำแหน่งอุปกรณ์บนแผนที่ใน Dashboard</span>
+                  <span>แสดงตำแหน่ง Device และสถานะล่าสุดบนแผนที่</span>
                 </div>
                 <input
                   type="checkbox"
                   checked={showDeviceMap}
                   onChange={(event) => setShowDeviceMap(event.target.checked)}
+                />
+              </label>
+
+              <label className="settings-v3-toggle-item">
+                <div>
+                  <strong>Latest Active Alarms</strong>
+                  <span>แสดงรายการ Alarm ที่ยัง Active อยู่ล่าสุด</span>
+                </div>
+                <input
+                  type="checkbox"
+                  checked={showLatestActiveAlarms}
+                  onChange={(event) =>
+                    setShowLatestActiveAlarms(event.target.checked)
+                  }
                 />
               </label>
             </div>

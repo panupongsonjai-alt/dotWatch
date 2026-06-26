@@ -1361,3 +1361,30 @@
   }
 }
 
+/* =========================================================
+   Settings - Dashboard Display Toggles
+========================================================= */
+
+.dashboard-display-toggle-list {
+  display: grid;
+  gap: 12px;
+}
+
+.dashboard-display-toggle-list .settings-v3-toggle-item {
+  min-height: 72px;
+}
+
+.dashboard-display-toggle-list .settings-v3-toggle-item strong {
+  font-size: 14px;
+}
+
+.dashboard-display-toggle-list .settings-v3-toggle-item span {
+  line-height: 1.45;
+}
+
+@media (max-width: 560px) {
+  .dashboard-display-toggle-list .settings-v3-toggle-item {
+    align-items: flex-start;
+  }
+}
+
