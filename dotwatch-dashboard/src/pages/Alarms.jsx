@@ -18,7 +18,7 @@ import {
   Search,
   Trash2,
 } from 'lucide-react'
-import { PageHeader, SectionHeader, StatCard } from '../components/common'
+import { StatCard } from '../components/common'
 import { confirmDeleteAction } from '../utils/typedConfirm'
 
 function formatDate(value) {
@@ -79,12 +79,8 @@ function mergeAlarmEvents(prev, nextAlarms) {
   })
 
   return Array.from(unique.values()).sort((a, b) => {
-    const aTime = new Date(
-      a.triggered_at || a.time || a.created_at || 0
-    ).getTime()
-    const bTime = new Date(
-      b.triggered_at || b.time || b.created_at || 0
-    ).getTime()
+    const aTime = new Date(a.triggered_at || a.time || a.created_at || 0).getTime()
+    const bTime = new Date(b.triggered_at || b.time || b.created_at || 0).getTime()
     return bTime - aTime
   })
 }
@@ -218,6 +214,12 @@ function Alarms() {
   function handleClearAlarms() {
     if (alarms.length === 0) return
 
+    const ok = window.confirm(
+      'ต้องการ Clear Alarm Events ที่แสดงอยู่ตอนนี้ใช่ไหม?\n\nรายการจะถูกซ่อนจากหน้า Alarm Center จนกว่าจะกด Refresh หรือมีข้อมูลใหม่จาก Realtime'
+    )
+
+    if (!ok) return
+
     setAlarms([])
     setSearch('')
     setStatusFilter('all')
@@ -319,39 +321,44 @@ function Alarms() {
         severityFilter === 'all' || alarm.severity === severityFilter
 
       return matchSearch && matchStatus && matchSeverity
+    }).sort((a, b) => {
+      const aTime = new Date(a.triggered_at || a.time || a.created_at || 0).getTime()
+      const bTime = new Date(b.triggered_at || b.time || b.created_at || 0).getTime()
+      return bTime - aTime
     })
   }, [alarms, search, statusFilter, severityFilter, deviceMetrics])
 
   return (
     <div className="page app-page alarms-page">
-      <PageHeader
-        eyebrow="Alarm Center"
-        title="Alarms"
-        description="ติดตาม Alarm Events และ Alarm Rules ของอุปกรณ์ทั้งหมด"
-        actions={
-          <>
-            <button
-              type="button"
-              className="secondary-button"
-              onClick={loadData}
-              disabled={loading || saving}
-            >
-              <RefreshCw size={16} />
-              Refresh
-            </button>
+      <section className="app-page-header">
+        <div>
+          <span className="page-eyebrow">Alarm Center</span>
+          <h2>Alarms</h2>
+          <p>ติดตาม Alarm Events และ Alarm Rules ของอุปกรณ์ทั้งหมด</p>
+        </div>
 
-            <button
-              type="button"
-              className="primary-button"
-              onClick={handleClearAlarms}
-              disabled={loading || saving}
-            >
-              <Trash2 size={16} />
-              Clear Alarm
-            </button>
-          </>
-        }
-      />
+        <div className="app-page-actions">
+          <button
+            type="button"
+            className="ghost-button"
+            onClick={loadData}
+            disabled={loading || saving}
+          >
+            <RefreshCw size={17} />
+            Refresh
+          </button>
+
+          <button
+            type="button"
+            className="primary-button alarm-clear-button"
+            onClick={handleClearAlarms}
+            disabled={loading || saving || alarms.length === 0}
+          >
+            <Trash2 size={17} />
+            Clear Alarm
+          </button>
+        </div>
+      </section>
 
       <section className="alarms-stat-grid dashboard-style-stat-grid">
         <StatCard
@@ -380,10 +387,16 @@ function Alarms() {
       </section>
 
       <section className="app-card">
-        <SectionHeader
-          title="Alarm Events"
-          description="รายการแจ้งเตือนล่าสุดจาก Dynamic Metrics"
-        />
+        <div className="app-section-title">
+          <div>
+            <h2>Alarm Events</h2>
+            <p>รายการแจ้งเตือนล่าสุดจาก Dynamic Metrics</p>
+          </div>
+
+          <span className="alarm-section-count">
+            {filteredAlarms.length} Events
+          </span>
+        </div>
 
         <div className="alarm-toolbar">
           <label className="search-input">
@@ -426,7 +439,7 @@ function Alarms() {
             <p>เมื่อมีค่าเกินเงื่อนไข ระบบจะแสดงรายการที่นี่</p>
           </div>
         ) : (
-          <div className="alarm-table-wrap">
+          <div className="alarm-table-wrap alarm-events-table-wrap">
             <table className="device-v2-table alarm-table">
               <thead>
                 <tr>
@@ -510,10 +523,14 @@ function Alarms() {
       </section>
 
       <section className="app-card">
-        <SectionHeader
-          title="Alarm Rules"
-          description="Rule ทั้งหมดที่ตั้งไว้ในหน้า Device"
-        />
+        <div className="app-section-title">
+          <div>
+            <h2>Alarm Rules</h2>
+            <p>Rule ทั้งหมดที่ตั้งไว้ในหน้า Device</p>
+          </div>
+
+          <span className="alarm-section-count">{rules.length} Rules</span>
+        </div>
 
         {rules.length === 0 ? (
           <div className="app-empty-state">
@@ -522,7 +539,7 @@ function Alarms() {
             <p>ไปที่หน้า Device → Manage เพื่อตั้ง Rule ให้แต่ละ Metric</p>
           </div>
         ) : (
-          <div className="alarm-table-wrap">
+          <div className="alarm-table-wrap alarm-rules-table-wrap">
             <table className="device-v2-table alarm-table">
               <thead>
                 <tr>

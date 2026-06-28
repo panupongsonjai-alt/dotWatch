@@ -1,0 +1,116 @@
+/* =========================================================
+   dotWatch - StatCard Topbar Inset Pill
+   แก้แถบสีบน StatCard ไม่ให้เป็นเส้นยาวชนขอบการ์ด
+========================================================= */
+
+/*
+  ปัญหาจากภาพ:
+  แถบสีด้านบนยังพาดเต็มความกว้างของ card ทำให้ดูเป็นเส้นขอบตรง ๆ
+  ไม่เข้ากับมุมโค้งของการ์ด
+
+  วิธีแก้:
+  - ให้แถบสีเป็น pill อยู่ด้านใน card
+  - เว้นขอบซ้าย/ขวา
+  - ปลายมนจริง
+  - ไม่ใช้ overflow hidden ที่ card เพื่อไม่ตัดตัวเลข
+*/
+
+:root {
+  --dw-stat-topbar-inset-x: 14px;
+  --dw-stat-topbar-inset-y: 0px;
+  --dw-stat-topbar-height: 4px;
+  --dw-stat-topbar-radius: 999px;
+  --dw-stat-card-radius: 18px;
+}
+
+.dw-stat-card,
+.stat-card,
+.summary-card,
+.compact-summary-card,
+.dashboard-stat-card,
+.dashboard-summary-card,
+.history-stat-card,
+.profile-stat-card,
+.settings-stat-card,
+.system-health-stat-card,
+.alarm-stat-card,
+.notification-stat-card,
+.activity-stat-card {
+  position: relative !important;
+  overflow: visible !important;
+  border-radius: var(--dw-stat-card-radius) !important;
+}
+
+/* ปิดรูปแบบเดิมที่เป็นเส้นเต็มขอบ แล้วทำใหม่เป็น pill ด้านใน */
+.dw-stat-card::before,
+.stat-card::before,
+.summary-card::before,
+.compact-summary-card::before,
+.dashboard-stat-card::before,
+.dashboard-summary-card::before,
+.history-stat-card::before,
+.profile-stat-card::before,
+.settings-stat-card::before,
+.system-health-stat-card::before,
+.alarm-stat-card::before,
+.notification-stat-card::before,
+.activity-stat-card::before {
+  content: '' !important;
+  position: absolute !important;
+  top: var(--dw-stat-topbar-inset-y) !important;
+  left: var(--dw-stat-topbar-inset-x) !important;
+  right: var(--dw-stat-topbar-inset-x) !important;
+  width: auto !important;
+  height: var(--dw-stat-topbar-height) !important;
+  min-height: 0 !important;
+  max-height: var(--dw-stat-topbar-height) !important;
+  border-radius: var(--dw-stat-topbar-radius) !important;
+  background:
+    linear-gradient(
+      90deg,
+      var(--danger, #ef4444) 0%,
+      color-mix(in srgb, var(--danger, #ef4444) 42%, var(--primary, #2563eb)) 45%,
+      var(--accent, #06b6d4) 100%
+    ) !important;
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.02) !important;
+  pointer-events: none !important;
+  z-index: 2 !important;
+}
+
+/* เนื้อหาอยู่เหนือ background และไม่โดนแถบสีบัง */
+.dw-stat-card > *,
+.stat-card > *,
+.summary-card > *,
+.compact-summary-card > *,
+.dashboard-stat-card > *,
+.dashboard-summary-card > *,
+.history-stat-card > *,
+.profile-stat-card > *,
+.settings-stat-card > *,
+.system-health-stat-card > *,
+.alarm-stat-card > *,
+.notification-stat-card > *,
+.activity-stat-card > * {
+  position: relative !important;
+  z-index: 3 !important;
+}
+
+/* หน้า Alarm / Dashboard / History ที่ใช้ dw-stat-card */
+.dashboard-page .dw-stat-card,
+.device-v2-page .dw-stat-card,
+.history-page-v2 .dw-stat-card,
+.alarms-page .dw-stat-card,
+.notifications-page .dw-stat-card,
+.activity-page .dw-stat-card,
+.profile-v3-page .dw-stat-card,
+.settings-v3-page .dw-stat-card,
+.system-health-page .dw-stat-card {
+  border-radius: var(--dw-stat-card-radius) !important;
+}
+
+/* จอเล็ก ขยับ inset ให้น้อยลงเล็กน้อย */
+@media (max-width: 560px) {
+  :root {
+    --dw-stat-topbar-inset-x: 12px;
+  }
+}

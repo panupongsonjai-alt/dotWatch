@@ -1,0 +1,779 @@
+/* =========================================================
+   dotWatch - Design System Lock
+   Final visual consistency layer for all dashboard pages
+========================================================= */
+
+/*
+  Scope:
+  Dashboard / Devices / History / Alarm Center / Notifications / Activity
+  Profile / Settings / System Health / Device Detail
+
+  Goal:
+  Make layout rhythm, card radius, stat cards, tables, inputs, buttons,
+  empty states, and scrollbars feel like one product.
+
+  This file must be imported last in src/styles.css
+*/
+
+:root {
+  --dw-page-gap: 20px;
+  --dw-card-radius: 22px;
+  --dw-card-radius-lg: 24px;
+  --dw-control-radius: 14px;
+  --dw-control-height: 42px;
+  --dw-card-padding: 20px;
+  --dw-card-padding-lg: 22px;
+  --dw-border-soft: color-mix(in srgb, var(--border) 86%, transparent);
+  --dw-panel-soft: color-mix(in srgb, var(--panel) 94%, transparent);
+  --dw-panel-deep: color-mix(in srgb, var(--panel-2) 94%, black 6%);
+  --dw-ring: 0 0 0 3px color-mix(in srgb, var(--primary) 16%, transparent);
+  --dw-shadow-card: 0 18px 46px rgba(2, 6, 23, 0.16);
+  --dw-stat-card-height: 118px;
+  --dw-stat-card-radius: 18px;
+}
+
+/* ---------------------------------------------------------
+   Page rhythm
+--------------------------------------------------------- */
+
+.page,
+.app-page,
+.dashboard-page,
+.device-v2-page,
+.history-page-v2,
+.alarms-page,
+.notifications-page,
+.activity-page,
+.profile-v3-page,
+.settings-v3-page,
+.system-health-page,
+.device-detail-page {
+  display: grid;
+  gap: var(--dw-page-gap) !important;
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  box-sizing: border-box;
+}
+
+/* Prevent horizontal overflow in content area */
+.main-content,
+.app-main,
+.page-content,
+.content-area,
+.page,
+.app-page {
+  min-width: 0 !important;
+  max-width: 100% !important;
+  overflow-x: clip;
+}
+
+/* ---------------------------------------------------------
+   Page headers
+--------------------------------------------------------- */
+
+.dw-page-header,
+.app-page-header {
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 20px;
+  width: 100%;
+  min-width: 0;
+  padding: 24px !important;
+  border-radius: var(--dw-card-radius-lg) !important;
+  background:
+    linear-gradient(135deg, rgba(37, 99, 235, 0.08), transparent 36%),
+    var(--panel) !important;
+  border: 1px solid var(--border) !important;
+  box-shadow: var(--shadow-soft, var(--dw-shadow-card)) !important;
+  box-sizing: border-box;
+}
+
+.dw-page-header::after,
+.app-page-header::after {
+  content: '';
+  position: absolute;
+  right: -84px;
+  top: -84px;
+  width: 190px;
+  height: 190px;
+  border-radius: 999px;
+  background: rgba(37, 99, 235, 0.08);
+  pointer-events: none;
+}
+
+.dw-page-header > *,
+.app-page-header > * {
+  position: relative;
+  z-index: 1;
+  min-width: 0;
+}
+
+.page-eyebrow,
+.dw-page-header .page-eyebrow,
+.app-page-header .page-eyebrow {
+  display: inline-flex;
+  margin: 0 0 8px;
+  color: var(--danger);
+  font-size: 12px;
+  line-height: 1;
+  font-weight: 950;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.dw-page-header h1,
+.dw-page-header h2,
+.app-page-header h1,
+.app-page-header h2 {
+  margin: 0;
+  color: var(--text);
+  font-size: clamp(28px, 2.4vw, 34px);
+  line-height: 1.08;
+  font-weight: 950;
+  letter-spacing: -0.055em;
+}
+
+.dw-page-header p,
+.app-page-header p {
+  max-width: 760px;
+  margin: 10px 0 0;
+  color: var(--muted);
+  font-size: 14px;
+  line-height: 1.6;
+  font-weight: 500;
+}
+
+.dw-page-header-actions,
+.app-page-header-actions,
+.app-page-header > .alarm-page-actions {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+  flex-wrap: wrap;
+  min-width: 0;
+}
+
+/* ---------------------------------------------------------
+   Cards and panels
+--------------------------------------------------------- */
+
+.app-card,
+.panel,
+.card,
+.dashboard-card,
+.device-card,
+.profile-card,
+.settings-card,
+.system-health-card,
+.device-v2-card,
+.devices-v3-card,
+.devices-v3-selected-card,
+.metric-config-panel-clean,
+.metric-config-card-clean {
+  min-width: 0;
+  box-sizing: border-box;
+  border-radius: var(--dw-card-radius) !important;
+  background:
+    linear-gradient(135deg, rgba(37, 99, 235, 0.035), transparent 42%),
+    var(--panel) !important;
+  border: 1px solid var(--border) !important;
+  box-shadow: var(--shadow-soft, var(--dw-shadow-card)) !important;
+}
+
+.app-card,
+.panel,
+.card,
+.dashboard-card,
+.profile-card,
+.settings-card,
+.system-health-card {
+  padding: var(--dw-card-padding) !important;
+}
+
+/* Section headers */
+.dw-section-header,
+.app-section-title,
+.card-header,
+.panel-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  min-width: 0;
+  margin: 0 0 16px;
+}
+
+.dw-section-header h2,
+.app-section-title h2,
+.card-header h2,
+.panel-header h2,
+.app-card > h2 {
+  margin: 0;
+  color: var(--text);
+  font-size: 22px;
+  line-height: 1.15;
+  font-weight: 950;
+  letter-spacing: -0.045em;
+}
+
+.dw-section-header p,
+.app-section-title p,
+.card-header p,
+.panel-header p {
+  margin: 6px 0 0;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.55;
+  font-weight: 750;
+}
+
+/* ---------------------------------------------------------
+   Stat cards
+--------------------------------------------------------- */
+
+.dashboard-style-stat-grid,
+.dashboard-stat-grid,
+.app-summary-grid,
+.compact-summary-grid,
+.device-v2-stat-grid,
+.devices-stat-grid,
+.history-stat-grid,
+.alarms-stat-grid,
+.notifications-stat-grid,
+.activity-stat-grid,
+.profile-stat-grid,
+.settings-stat-grid,
+.system-health-stat-grid,
+.stat-grid {
+  align-items: stretch !important;
+  gap: 12px !important;
+  min-width: 0;
+}
+
+.dw-stat-card,
+.stat-card,
+.summary-card,
+.compact-summary-card,
+.dashboard-stat-card,
+.dashboard-summary-card,
+.history-stat-card,
+.profile-stat-card,
+.settings-stat-card,
+.system-health-stat-card,
+.alarm-stat-card,
+.notification-stat-card,
+.activity-stat-card {
+  position: relative !important;
+  width: 100% !important;
+  min-width: 0 !important;
+  min-height: var(--dw-stat-card-height) !important;
+  height: var(--dw-stat-card-height) !important;
+  max-height: none !important;
+  padding: 16px !important;
+  overflow: visible !important;
+  border-radius: var(--dw-stat-card-radius) !important;
+  background: var(--panel) !important;
+  border: 1px solid var(--border) !important;
+  box-shadow: var(--shadow-soft, var(--dw-shadow-card)) !important;
+  box-sizing: border-box !important;
+
+  display: grid !important;
+  grid-template-rows: auto auto minmax(16px, auto) !important;
+  align-content: start !important;
+  row-gap: 8px !important;
+}
+
+.dw-stat-card::before,
+.stat-card::before,
+.summary-card::before,
+.compact-summary-card::before,
+.dashboard-stat-card::before,
+.dashboard-summary-card::before,
+.history-stat-card::before,
+.profile-stat-card::before,
+.settings-stat-card::before,
+.system-health-stat-card::before,
+.alarm-stat-card::before,
+.notification-stat-card::before,
+.activity-stat-card::before {
+  content: '' !important;
+  position: absolute !important;
+  left: 0 !important;
+  right: 0 !important;
+  top: 0 !important;
+  height: 3px !important;
+  border-radius: var(--dw-stat-card-radius) var(--dw-stat-card-radius) 0 0 !important;
+  background:
+    linear-gradient(
+      90deg,
+      var(--danger, #ef4444),
+      var(--primary, #2563eb),
+      var(--accent, #06b6d4)
+    ) !important;
+  pointer-events: none !important;
+  z-index: 1 !important;
+}
+
+.dw-stat-card > *,
+.stat-card > *,
+.summary-card > *,
+.compact-summary-card > * {
+  position: relative;
+  z-index: 2;
+  min-width: 0;
+}
+
+.dw-stat-card > span:first-child,
+.dw-stat-card > h3:first-child,
+.dw-stat-card > h4:first-child,
+.dw-stat-card > label:first-child,
+.dw-stat-card .stat-label,
+.stat-card > span:first-child,
+.stat-card > h3:first-child,
+.stat-card > h4:first-child,
+.stat-card > label:first-child,
+.stat-card .stat-label,
+.summary-card > span:first-child,
+.summary-card > h3:first-child,
+.summary-card > h4:first-child,
+.summary-card > label:first-child,
+.summary-card .stat-label,
+.compact-summary-card > span:first-child,
+.compact-summary-card > h3:first-child,
+.compact-summary-card > h4:first-child,
+.compact-summary-card > label:first-child,
+.compact-summary-card .stat-label {
+  display: block;
+  width: 100%;
+  margin: 0;
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.25;
+  font-weight: 950;
+  letter-spacing: 0.075em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.dw-stat-card > strong,
+.dw-stat-card .stat-value,
+.dw-stat-card .summary-value,
+.dw-stat-card .card-value,
+.stat-card > strong,
+.stat-card .stat-value,
+.stat-card .summary-value,
+.stat-card .card-value,
+.summary-card > strong,
+.summary-card .stat-value,
+.summary-card .summary-value,
+.summary-card .card-value,
+.compact-summary-card > strong,
+.compact-summary-card .stat-value,
+.compact-summary-card .summary-value,
+.compact-summary-card .card-value {
+  display: block;
+  width: 100%;
+  min-height: 30px;
+  margin: 0;
+  color: var(--text);
+  font-size: clamp(24px, 2vw, 29px);
+  line-height: 1.08;
+  font-weight: 950;
+  letter-spacing: -0.055em;
+  white-space: nowrap;
+  overflow: visible;
+  visibility: visible;
+  opacity: 1;
+}
+
+.dw-stat-card > p,
+.dw-stat-card > small,
+.dw-stat-card .stat-hint,
+.stat-card > p,
+.stat-card > small,
+.stat-card .stat-hint,
+.summary-card > p,
+.summary-card > small,
+.summary-card .stat-hint,
+.compact-summary-card > p,
+.compact-summary-card > small,
+.compact-summary-card .stat-hint {
+  display: block;
+  width: 100%;
+  min-height: 16px;
+  margin: 0;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.35;
+  font-weight: 750;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Keep long values readable */
+.profile-v3-page .dw-stat-card > strong,
+.settings-v3-page .dw-stat-card > strong,
+.system-health-page .dw-stat-card > strong {
+  font-size: clamp(20px, 1.8vw, 25px);
+}
+
+/* ---------------------------------------------------------
+   Forms, search, filters
+--------------------------------------------------------- */
+
+input,
+select,
+textarea,
+.search-input,
+.form-input,
+.form-select,
+.filter-select {
+  box-sizing: border-box;
+}
+
+input:not([type='checkbox']):not([type='radio']),
+select,
+textarea,
+.search-input,
+.form-input,
+.form-select,
+.filter-select {
+  min-height: var(--dw-control-height);
+  border-radius: var(--dw-control-radius) !important;
+  background: var(--input, var(--panel-2)) !important;
+  border: 1px solid var(--border) !important;
+  color: var(--text) !important;
+  box-shadow: none !important;
+}
+
+input:not([type='checkbox']):not([type='radio']):focus,
+select:focus,
+textarea:focus,
+.search-input:focus-within,
+.form-input:focus-within,
+.form-select:focus {
+  outline: none !important;
+  border-color: color-mix(in srgb, var(--primary) 58%, var(--border)) !important;
+  box-shadow: var(--dw-ring) !important;
+}
+
+.search-input {
+  display: grid;
+  grid-template-columns: 18px minmax(0, 1fr);
+  align-items: center;
+  gap: 8px;
+  padding: 0 12px;
+}
+
+.search-input input {
+  min-height: 0 !important;
+  height: 100%;
+  padding: 0 !important;
+  background: transparent !important;
+  border: 0 !important;
+  box-shadow: none !important;
+}
+
+/* ---------------------------------------------------------
+   Buttons
+--------------------------------------------------------- */
+
+button,
+.ghost-button,
+.primary-button,
+.secondary-button,
+.save-btn,
+.delete-btn {
+  font-family: inherit;
+}
+
+.ghost-button,
+.secondary-button,
+.primary-button,
+.save-btn,
+.delete-btn {
+  min-height: 40px;
+  padding: 0 14px;
+  border-radius: 14px !important;
+  font-size: 13px;
+  line-height: 1;
+  font-weight: 950;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  white-space: nowrap;
+  transition:
+    transform 0.18s ease,
+    border-color 0.18s ease,
+    background-color 0.18s ease,
+    box-shadow 0.18s ease;
+}
+
+.ghost-button:hover:not(:disabled),
+.secondary-button:hover:not(:disabled),
+.primary-button:hover:not(:disabled),
+.save-btn:hover:not(:disabled),
+.delete-btn:hover:not(:disabled) {
+  transform: translateY(-1px);
+}
+
+.primary-button,
+.save-btn {
+  color: white !important;
+  background: var(--danger) !important;
+  border-color: color-mix(in srgb, var(--danger) 70%, white) !important;
+  box-shadow: 0 14px 30px rgba(239, 68, 68, 0.18);
+}
+
+.ghost-button,
+.secondary-button {
+  color: var(--text) !important;
+  background: var(--panel-2) !important;
+  border: 1px solid var(--border) !important;
+}
+
+.delete-btn {
+  color: var(--danger) !important;
+  background: rgba(239, 68, 68, 0.08) !important;
+  border: 1px solid rgba(239, 68, 68, 0.24) !important;
+}
+
+/* ---------------------------------------------------------
+   Tables
+--------------------------------------------------------- */
+
+table,
+.device-v2-table,
+.alarm-table {
+  width: 100%;
+  border-collapse: separate !important;
+  border-spacing: 0 !important;
+}
+
+.table-wrap,
+.alarm-table-wrap,
+.device-table-wrap,
+.history-table-wrap {
+  min-width: 0;
+  max-width: 100%;
+  overflow: auto;
+  border-radius: 18px;
+  border: 1px solid var(--border);
+  background: var(--panel-2);
+}
+
+.device-v2-table th,
+.device-v2-table td,
+.alarm-table th,
+.alarm-table td {
+  padding: 14px;
+  vertical-align: middle;
+  border-bottom: 1px solid var(--border);
+}
+
+.device-v2-table thead th,
+.alarm-table thead th {
+  color: var(--muted);
+  background: color-mix(in srgb, var(--panel) 92%, black 8%);
+  font-size: 11px;
+  line-height: 1.15;
+  font-weight: 950;
+  letter-spacing: 0.075em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+/* Alarm sticky header */
+.alarms-page .alarm-events-table-wrap {
+  position: relative;
+  isolation: isolate;
+  max-height: 704px !important;
+  overflow: auto !important;
+  background: var(--panel-2);
+  scrollbar-width: thin;
+}
+
+.alarms-page .alarm-events-table-wrap .alarm-table thead {
+  position: sticky;
+  top: 0;
+  z-index: 30;
+}
+
+.alarms-page .alarm-events-table-wrap .alarm-table thead th {
+  position: sticky !important;
+  top: 0 !important;
+  z-index: 31 !important;
+  height: 44px;
+  color: var(--muted) !important;
+  background:
+    linear-gradient(
+      180deg,
+      color-mix(in srgb, var(--panel) 98%, white 2%),
+      color-mix(in srgb, var(--panel) 94%, black 6%)
+    ) !important;
+  border-bottom: 1px solid var(--border) !important;
+  box-shadow: 0 12px 18px rgba(2, 6, 23, 0.22) !important;
+  backdrop-filter: none !important;
+}
+
+.alarms-page .alarm-events-table-wrap .alarm-table tbody,
+.alarms-page .alarm-events-table-wrap .alarm-table tbody td {
+  position: relative;
+  z-index: 1;
+}
+
+/* ---------------------------------------------------------
+   Status pills, badges, empty states
+--------------------------------------------------------- */
+
+.status,
+.badge,
+.status-pill,
+.alarm-section-count {
+  min-height: 30px;
+  padding: 0 12px;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  line-height: 1;
+  font-weight: 950;
+  white-space: nowrap;
+}
+
+.app-empty-state,
+.empty-state,
+.loading-state {
+  min-height: 178px;
+  display: grid;
+  place-items: center;
+  align-content: center;
+  gap: 10px;
+  padding: 28px;
+  border-radius: 20px;
+  background: var(--panel-2);
+  border: 1px dashed var(--border);
+  color: var(--muted);
+  text-align: center;
+}
+
+.app-empty-state h3,
+.empty-state h3,
+.loading-state h3 {
+  margin: 0;
+  color: var(--text);
+  font-size: 18px;
+  line-height: 1.2;
+  font-weight: 950;
+}
+
+/* ---------------------------------------------------------
+   Scrollbars
+--------------------------------------------------------- */
+
+* {
+  scrollbar-width: thin;
+  scrollbar-color: color-mix(in srgb, var(--primary) 54%, transparent)
+    transparent;
+}
+
+*::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+*::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+*::-webkit-scrollbar-thumb {
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--primary) 46%, transparent);
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+
+*::-webkit-scrollbar-thumb:hover {
+  background: color-mix(in srgb, var(--primary) 66%, transparent);
+  background-clip: padding-box;
+}
+
+/* ---------------------------------------------------------
+   Responsive
+--------------------------------------------------------- */
+
+@media (max-width: 980px) {
+  .dw-page-header,
+  .app-page-header {
+    display: grid;
+    gap: 16px;
+  }
+
+  .dw-page-header-actions,
+  .app-page-header-actions,
+  .app-page-header > .alarm-page-actions {
+    justify-content: flex-start;
+  }
+}
+
+@media (max-width: 860px) {
+  :root {
+    --dw-stat-card-height: 112px;
+  }
+
+  .dashboard-style-stat-grid,
+  .dashboard-stat-grid,
+  .device-v2-stat-grid,
+  .history-stat-grid,
+  .alarms-stat-grid,
+  .notifications-stat-grid,
+  .activity-stat-grid,
+  .profile-stat-grid,
+  .settings-stat-grid,
+  .system-health-stat-grid,
+  .stat-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  }
+}
+
+@media (max-width: 560px) {
+  .dw-page-header,
+  .app-page-header,
+  .app-card,
+  .panel,
+  .card {
+    padding: 16px !important;
+  }
+
+  .dashboard-style-stat-grid,
+  .dashboard-stat-grid,
+  .device-v2-stat-grid,
+  .history-stat-grid,
+  .alarms-stat-grid,
+  .notifications-stat-grid,
+  .activity-stat-grid,
+  .profile-stat-grid,
+  .settings-stat-grid,
+  .system-health-stat-grid,
+  .stat-grid {
+    grid-template-columns: 1fr !important;
+  }
+
+  .ghost-button,
+  .secondary-button,
+  .primary-button,
+  .save-btn,
+  .delete-btn {
+    width: 100%;
+  }
+}

@@ -1,0 +1,93 @@
+/* =========================================================
+   dotWatch - StatCard Topbar Polish
+   ปรับแถบสีด้านบน StatCard ให้โค้งและเข้ากับตัวการ์ด
+========================================================= */
+
+:root {
+  --dw-stat-topbar-height: 3px;
+  --dw-stat-topbar-radius: 18px;
+}
+
+.dw-stat-card,
+.stat-card,
+.summary-card,
+.compact-summary-card,
+.dashboard-stat-card,
+.dashboard-summary-card,
+.history-stat-card,
+.profile-stat-card,
+.settings-stat-card,
+.system-health-stat-card,
+.alarm-stat-card,
+.notification-stat-card,
+.activity-stat-card {
+  position: relative !important;
+  overflow: visible !important;
+  border-radius: var(--dw-stat-topbar-radius) !important;
+}
+
+/* แถบสีใหม่: โค้งตามหัวการ์ด ไม่เป็นเส้นแข็ง */
+.dw-stat-card::before,
+.stat-card::before,
+.summary-card::before,
+.compact-summary-card::before,
+.dashboard-stat-card::before,
+.dashboard-summary-card::before,
+.history-stat-card::before,
+.profile-stat-card::before,
+.settings-stat-card::before,
+.system-health-stat-card::before,
+.alarm-stat-card::before,
+.notification-stat-card::before,
+.activity-stat-card::before {
+  content: '' !important;
+  position: absolute !important;
+  top: 0 !important;
+  left: 0 !important;
+  right: 0 !important;
+  width: auto !important;
+  height: var(--dw-stat-topbar-height) !important;
+  min-height: 0 !important;
+  max-height: var(--dw-stat-topbar-height) !important;
+  border-radius: var(--dw-stat-topbar-radius) var(--dw-stat-topbar-radius) 999px 999px !important;
+  background:
+    linear-gradient(
+      90deg,
+      var(--danger, #ef4444) 0%,
+      color-mix(in srgb, var(--danger, #ef4444) 42%, var(--primary, #2563eb)) 44%,
+      var(--accent, #06b6d4) 100%
+    ) !important;
+  box-shadow: none !important;
+  pointer-events: none !important;
+  z-index: 2 !important;
+}
+
+.dw-stat-card > *,
+.stat-card > *,
+.summary-card > *,
+.compact-summary-card > *,
+.dashboard-stat-card > *,
+.dashboard-summary-card > *,
+.history-stat-card > *,
+.profile-stat-card > *,
+.settings-stat-card > *,
+.system-health-stat-card > *,
+.alarm-stat-card > *,
+.notification-stat-card > *,
+.activity-stat-card > * {
+  position: relative;
+  z-index: 3;
+}
+
+/* คุม radius ให้ทุกหน้าใช้มุมเดียวกัน */
+.dashboard-page .dw-stat-card,
+.device-v2-page .dw-stat-card,
+.history-page-v2 .dw-stat-card,
+.alarms-page .dw-stat-card,
+.notifications-page .dw-stat-card,
+.activity-page .dw-stat-card,
+.profile-v3-page .dw-stat-card,
+.settings-v3-page .dw-stat-card,
+.system-health-page .dw-stat-card {
+  border-radius: var(--dw-stat-topbar-radius) !important;
+}

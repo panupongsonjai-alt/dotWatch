@@ -127,6 +127,39 @@ function getHealthStatus(device = {}) {
   return 'offline'
 }
 
+function getMapDeviceStatus(device = {}) {
+  const status = String(device.status || getHealthStatus(device) || 'offline')
+    .trim()
+    .toLowerCase()
+
+  if (status === 'online') return 'online'
+  if (status === 'warning') return 'warning'
+  if (status === 'critical') return 'critical'
+
+  return 'offline'
+}
+
+function getMapStatusSummary(devices = []) {
+  return devices.reduce(
+    (acc, device) => {
+      const status = getMapDeviceStatus(device)
+
+      if (status === 'online') acc.online += 1
+      else if (status === 'warning') acc.warning += 1
+      else if (status === 'critical') acc.critical += 1
+      else acc.offline += 1
+
+      return acc
+    },
+    {
+      online: 0,
+      warning: 0,
+      critical: 0,
+      offline: 0,
+    }
+  )
+}
+
 function getMetricIndex(metricKey = '') {
   return Number(String(metricKey).replace(/[^0-9]/g, '')) || 0
 }
@@ -477,6 +510,11 @@ function Dashboard({ onOpenDevice }) {
     [devices]
   )
 
+  const mapStatusSummary = useMemo(
+    () => getMapStatusSummary(devices),
+    [devices]
+  )
+
   return (
     <div className="page app-page dashboard-page dashboard-v2-page">
       <PageHeader
@@ -631,20 +669,52 @@ function Dashboard({ onOpenDevice }) {
       )}
 
       {dashboardDisplay.showDeviceMap && (
-        <section className="app-card dashboard-map-card-v2">
-          <Suspense
-            fallback={
-              <div className="dashboard-map-loading">
-                <div className="dashboard-map-loading-icon" />
-                <div>
-                  <strong>Loading device map</strong>
-                  <p>กำลังโหลดแผนที่และตำแหน่งอุปกรณ์</p>
-                </div>
+        <section className="app-card dashboard-unified-section dashboard-map-card-v2">
+          <div className="app-section-title dashboard-section-title-row dashboard-unified-section-header dashboard-map-section-header">
+            <div>
+              <h2>Device Map</h2>
+              <p>
+                แสดงตำแหน่ง Device ทั้งหมดบนแผนที่ พร้อมสถานะล่าสุดของแต่ละอุปกรณ์
+              </p>
+            </div>
+
+            <div className="dashboard-map-header-actions">
+              <span className="device-count-badge dashboard-unified-section-badge">
+                {devices.length} Devices
+              </span>
+
+              <div className="dashboard-map-status-summary">
+                <span className="dashboard-map-status-chip online">
+                  Online {mapStatusSummary.online}
+                </span>
+                <span className="dashboard-map-status-chip warning">
+                  Warning {mapStatusSummary.warning}
+                </span>
+                <span className="dashboard-map-status-chip critical">
+                  Critical {mapStatusSummary.critical}
+                </span>
+                <span className="dashboard-map-status-chip offline">
+                  Offline {mapStatusSummary.offline}
+                </span>
               </div>
-            }
-          >
-            <DeviceMap devices={devices} onOpenDevice={onOpenDevice} />
-          </Suspense>
+            </div>
+          </div>
+
+          <div className="dashboard-unified-map-frame">
+            <Suspense
+              fallback={
+                <div className="dashboard-map-loading">
+                  <div className="dashboard-map-loading-icon" />
+                  <div>
+                    <strong>Loading device map</strong>
+                    <p>กำลังโหลดแผนที่และตำแหน่งอุปกรณ์</p>
+                  </div>
+                </div>
+              }
+            >
+              <DeviceMap devices={devices} onOpenDevice={onOpenDevice} />
+            </Suspense>
+          </div>
         </section>
       )}
 

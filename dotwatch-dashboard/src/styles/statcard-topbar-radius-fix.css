@@ -1,0 +1,100 @@
+/* =========================================================
+   dotWatch - StatCard Topbar Radius Fix
+   ทำแถบสีด้านบนของ StatCard ให้โค้งเข้ากับตัวการ์ด
+========================================================= */
+
+/*
+  ปัญหา:
+  แถบสีด้านบนของ StatCard เป็น pseudo element ที่ไม่โค้งตามมุมการ์ด
+  ทำให้ดูเป็นเส้นตรงแข็งและไม่เข้ากับ radius ของ card
+
+  วิธีแก้:
+  - ให้ card เป็น relative
+  - ให้ ::before โค้งเฉพาะมุมบนซ้าย/ขวา
+  - ไม่บังคับ overflow hidden เพื่อไม่ตัดตัวเลข/ข้อความ
+*/
+
+:root {
+  --dw-stat-card-radius: 18px;
+  --dw-stat-card-topbar-height: 3px;
+}
+
+.dw-stat-card,
+.stat-card,
+.summary-card,
+.compact-summary-card,
+.dashboard-stat-card,
+.dashboard-summary-card,
+.history-stat-card,
+.profile-stat-card,
+.settings-stat-card,
+.system-health-stat-card,
+.alarm-stat-card,
+.notification-stat-card,
+.activity-stat-card {
+  position: relative !important;
+  border-radius: var(--dw-stat-card-radius) !important;
+}
+
+/* แถบสีด้านบน: โค้งตามมุมบนของ card */
+.dw-stat-card::before,
+.stat-card::before,
+.summary-card::before,
+.compact-summary-card::before,
+.dashboard-stat-card::before,
+.dashboard-summary-card::before,
+.history-stat-card::before,
+.profile-stat-card::before,
+.settings-stat-card::before,
+.system-health-stat-card::before,
+.alarm-stat-card::before,
+.notification-stat-card::before,
+.activity-stat-card::before {
+  content: '' !important;
+  position: absolute !important;
+  left: 0 !important;
+  right: 0 !important;
+  top: 0 !important;
+  height: var(--dw-stat-card-topbar-height) !important;
+  border-radius: var(--dw-stat-card-radius) var(--dw-stat-card-radius) 0 0 !important;
+  overflow: hidden !important;
+  pointer-events: none !important;
+  z-index: 1 !important;
+}
+
+/* ถ้า theme/page ใช้ background เดิมอยู่ ให้ preserve สีเดิมไว้
+   ถ้าไม่มี ให้ fallback เป็น gradient primary */
+.dw-stat-card::before,
+.stat-card::before,
+.summary-card::before,
+.compact-summary-card::before {
+  background:
+    linear-gradient(
+      90deg,
+      var(--danger, #ef4444),
+      var(--primary, #2563eb),
+      var(--accent, #06b6d4)
+    ) !important;
+}
+
+/* กันเนื้อหาไปชนเส้นบน */
+.dw-stat-card > *,
+.stat-card > *,
+.summary-card > *,
+.compact-summary-card > * {
+  position: relative;
+  z-index: 2;
+}
+
+/* กรณี card radius บางหน้าถูกตั้งใหญ่กว่า */
+.dashboard-page .dw-stat-card,
+.device-v2-page .dw-stat-card,
+.history-page-v2 .dw-stat-card,
+.alarms-page .dw-stat-card,
+.notifications-page .dw-stat-card,
+.activity-page .dw-stat-card,
+.profile-v3-page .dw-stat-card,
+.settings-v3-page .dw-stat-card,
+.system-health-page .dw-stat-card {
+  --dw-stat-card-radius: 18px;
+}

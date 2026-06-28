@@ -6,15 +6,10 @@ PROJECT_DIR="${1:-/home/pi/dotwatch-pi-agent}"
 SERVICE_FILE="/etc/systemd/system/dotwatch-pi-config-ui.service"
 CURRENT_USER="$(whoami)"
 
-echo "Installing dotWatch Pi Config UI..."
-echo "Project directory: ${PROJECT_DIR}"
-echo "User: ${CURRENT_USER}"
-
 mkdir -p "${PROJECT_DIR}"
 
 if [ ! -f "${PROJECT_DIR}/pi_config_web.py" ]; then
   echo "pi_config_web.py not found in ${PROJECT_DIR}"
-  echo "Please copy pi_config_web.py to ${PROJECT_DIR} first."
   exit 1
 fi
 
@@ -27,14 +22,8 @@ DEVICE_CODE=
 DEVICE_SECRET=
 SEND_INTERVAL_SECONDS=5
 FIRMWARE_VERSION=rpi-agent-0.1.0
-CONFIG_UI_USERNAME=admin
-CONFIG_UI_PASSWORD=change-this-config-password
-EOF
-fi
-
-if ! grep -q "^CONFIG_UI_USERNAME=" "${PROJECT_DIR}/.env"; then
-  cat >> "${PROJECT_DIR}/.env" <<'EOF'
-
+SENSOR_SOURCE=dummy
+MODBUS_CONFIG_PATH=/home/pi/dotwatch-pi-agent/modbus_config.json
 CONFIG_UI_USERNAME=admin
 CONFIG_UI_PASSWORD=change-this-config-password
 EOF
@@ -65,12 +54,3 @@ EOF
 sudo systemctl daemon-reload
 sudo systemctl enable dotwatch-pi-config-ui
 sudo systemctl restart dotwatch-pi-config-ui
-
-echo ""
-echo "Config UI installed."
-echo "Open: http://<PI-IP>:8080"
-echo "Status page: http://<PI-IP>:8080/status"
-echo "Default username: admin"
-echo "Default password: change-this-config-password"
-echo ""
-echo "Important: Change CONFIG_UI_PASSWORD in the web page after first login."

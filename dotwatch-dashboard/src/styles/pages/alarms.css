@@ -356,128 +356,189 @@
   }
 }
 
+
 /* =========================================================
-   Alarm Center - Actions and Stat Row
-   ให้ StatCard อยู่แถวเดียว และเพิ่มปุ่ม Clear Alarm ต่อจาก Refresh
+   Alarm Center - Stabilized Final Layer
 ========================================================= */
 
-.alarms-page .app-page-header {
-  display: flex !important;
-  align-items: flex-start !important;
-  justify-content: space-between !important;
-  gap: 18px !important;
-  overflow: hidden !important;
+.alarms-page {
+  display: grid;
+  gap: 20px;
+  min-width: 0;
 }
 
-.alarm-page-actions {
-  flex: 0 0 auto;
+.alarms-page .alarm-clear-button {
+  color: white;
+  background: var(--primary);
+  border-color: color-mix(in srgb, var(--primary) 72%, white);
+}
+
+.alarms-page .alarms-stat-grid.dashboard-style-stat-grid,
+.alarms-stat-grid.dashboard-style-stat-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+  width: 100%;
+  min-width: 0;
+}
+
+.alarms-page .app-section-title {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  min-width: 0;
+}
+
+.alarm-section-count {
+  min-height: 30px;
   display: inline-flex;
   align-items: center;
-  justify-content: flex-end;
-  gap: 10px;
-  flex-wrap: wrap;
-  max-width: 100%;
-}
-
-.alarm-page-actions .ghost-button {
-  min-width: 112px;
+  justify-content: center;
+  padding: 0 12px;
+  border-radius: 999px;
+  color: var(--text);
+  background: var(--panel-2);
+  border: 1px solid var(--border);
+  font-size: 12px;
+  line-height: 1;
+  font-weight: 950;
   white-space: nowrap;
 }
 
-.alarm-clear-button {
-  color: var(--danger) !important;
-  border-color: rgba(239, 68, 68, 0.28) !important;
+.alarms-page .alarm-events-toolbar,
+.alarms-page .alarm-toolbar {
+  display: grid;
+  grid-template-columns: minmax(280px, 1fr) minmax(150px, 180px) minmax(150px, 180px);
+  gap: 10px;
+  align-items: center;
+  width: 100%;
+  min-width: 0;
+  padding: 10px;
+  border-radius: 18px;
+  background: var(--panel-2);
+  border: 1px solid var(--border);
+  box-sizing: border-box;
+}
+
+.alarms-page .alarm-events-toolbar .search-input,
+.alarms-page .alarm-toolbar .search-input {
+  width: 100%;
+  min-width: 0;
+  height: 42px;
+  min-height: 42px;
+  margin: 0;
+  padding: 0 12px;
+  display: grid;
+  grid-template-columns: 18px minmax(0, 1fr);
+  align-items: center;
+  gap: 8px;
+  background: var(--input);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  box-sizing: border-box;
+}
+
+.alarms-page .alarm-events-toolbar .search-input input,
+.alarms-page .alarm-toolbar .search-input input {
+  width: 100%;
+  min-width: 0;
+  height: 100%;
+  padding: 0;
+  background: transparent;
+  border: 0;
+  outline: 0;
+  box-shadow: none;
+}
+
+.alarms-page .alarm-events-toolbar select,
+.alarms-page .alarm-toolbar select {
+  width: 100%;
+  min-width: 0;
+  height: 42px;
+  min-height: 42px;
+  margin: 0;
+  padding: 0 38px 0 14px;
+  border-radius: 14px;
+  box-sizing: border-box;
+}
+
+.alarms-page .alarm-table-wrap {
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  border-radius: 18px;
+  border: 1px solid var(--border);
+  background: var(--panel-2);
+  overflow: auto;
+  box-sizing: border-box;
+}
+
+.alarms-page .alarm-events-table-wrap {
+  position: relative;
+  isolation: isolate;
+  max-height: 704px;
+  overflow-y: auto;
+  overflow-x: auto;
+}
+
+.alarms-page .alarm-table {
+  width: 100%;
+  min-width: 920px;
+  border-collapse: separate;
+  border-spacing: 0;
+  table-layout: fixed;
+}
+
+.alarms-page .alarm-table th,
+.alarms-page .alarm-table td {
+  padding: 14px;
+  vertical-align: middle;
+  border-bottom: 1px solid var(--border);
+}
+
+.alarms-page .alarm-table thead {
+  position: sticky;
+  top: 0;
+  z-index: 30;
+}
+
+.alarms-page .alarm-table thead th {
+  position: sticky;
+  top: 0;
+  z-index: 31;
+  height: 44px;
   background:
-    linear-gradient(135deg, rgba(239, 68, 68, 0.1), transparent 62%),
-    var(--panel) !important;
+    linear-gradient(
+      180deg,
+      color-mix(in srgb, var(--panel) 98%, white 2%),
+      color-mix(in srgb, var(--panel) 94%, black 6%)
+    );
+  box-shadow: 0 12px 18px rgba(2, 6, 23, 0.22);
+  backdrop-filter: none;
 }
 
-.alarm-clear-button:hover:not(:disabled) {
-  border-color: rgba(239, 68, 68, 0.48) !important;
-  box-shadow: 0 12px 28px rgba(239, 68, 68, 0.12) !important;
-}
+@media (max-width: 980px) {
+  .alarms-page .alarm-events-toolbar,
+  .alarms-page .alarm-toolbar {
+    grid-template-columns: 1fr;
+  }
 
-.alarm-clear-button:disabled {
-  opacity: 0.48;
-  cursor: not-allowed;
-}
-
-/* บังคับ Alarm stat cards ให้อยู่แถวเดียวบน desktop */
-.alarms-page .alarms-stat-grid.dashboard-style-stat-grid,
-.alarms-center-page .alarms-stat-grid.dashboard-style-stat-grid,
-.alarms-stat-grid.dashboard-style-stat-grid {
-  width: 100% !important;
-  min-width: 0 !important;
-  display: grid !important;
-  grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
-  gap: 12px !important;
-  overflow: visible !important;
-}
-
-.alarms-page .alarms-stat-grid .dw-stat-card,
-.alarms-center-page .alarms-stat-grid .dw-stat-card,
-.alarms-stat-grid .dw-stat-card {
-  min-width: 0 !important;
-  width: 100% !important;
-  min-height: 104px !important;
-}
-
-.alarms-page .alarms-stat-grid .dw-stat-card strong,
-.alarms-center-page .alarms-stat-grid .dw-stat-card strong,
-.alarms-stat-grid .dw-stat-card strong {
-  font-size: clamp(24px, 2.1vw, 30px) !important;
-}
-
-/* override จาก sidebar overflow patch ที่เคยบังคับเป็น 2 columns */
-@media (max-width: 1320px) {
-  .layout:not(.sidebar-collapsed) .alarms-page .dashboard-style-stat-grid,
-  .layout:not(.sidebar-collapsed) .alarms-center-page .dashboard-style-stat-grid,
-  .layout:not(.sidebar-collapsed) .alarms-stat-grid.dashboard-style-stat-grid {
-    grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+  .alarms-page .app-section-title {
+    display: grid;
   }
 }
 
-/* desktop / laptop ยังให้ 4 ใบในแถวเดียว */
-@media (min-width: 721px) {
+@media (max-width: 860px) {
   .alarms-page .alarms-stat-grid.dashboard-style-stat-grid,
-  .alarms-center-page .alarms-stat-grid.dashboard-style-stat-grid,
   .alarms-stat-grid.dashboard-style-stat-grid {
-    grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
-  }
-}
-
-/* จอกลางมาก ๆ ค่อยลดเป็น 2 columns */
-@media (max-width: 720px) {
-  .alarms-page .app-page-header {
-    display: grid !important;
-    align-items: stretch !important;
-  }
-
-  .alarm-page-actions {
-    justify-content: flex-start;
-  }
-
-  .alarm-page-actions .ghost-button {
-    flex: 1 1 150px;
-  }
-
-  .alarms-page .alarms-stat-grid.dashboard-style-stat-grid,
-  .alarms-center-page .alarms-stat-grid.dashboard-style-stat-grid,
-  .alarms-stat-grid.dashboard-style-stat-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
 
 @media (max-width: 460px) {
-  .alarm-page-actions .ghost-button {
-    width: 100%;
-    flex-basis: 100%;
-  }
-
   .alarms-page .alarms-stat-grid.dashboard-style-stat-grid,
-  .alarms-center-page .alarms-stat-grid.dashboard-style-stat-grid,
   .alarms-stat-grid.dashboard-style-stat-grid {
-    grid-template-columns: 1fr !important;
+    grid-template-columns: 1fr;
   }
 }
-

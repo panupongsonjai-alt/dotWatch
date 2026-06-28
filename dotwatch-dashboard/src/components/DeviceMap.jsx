@@ -6,18 +6,31 @@ import 'leaflet/dist/leaflet.css'
 const DEFAULT_CENTER = [13.7563, 100.5018]
 
 function getStatus(device = {}) {
-  return device.status || 'offline'
+  return String(device.status || 'offline').trim().toLowerCase()
+}
+
+function getStatusLabel(status = 'offline') {
+  if (status === 'online') return 'Online'
+  if (status === 'warning') return 'Warning'
+  if (status === 'critical') return 'Critical'
+
+  return 'Offline'
 }
 
 function getStatusColor(status) {
   if (status === 'online') return '#22c55e'
   if (status === 'warning') return '#f59e0b'
   if (status === 'critical') return '#ef4444'
+
   return '#64748b'
 }
 
 function getDeviceName(device = {}) {
   return device.name || device.device_code || 'Unnamed Device'
+}
+
+function getDeviceCode(device = {}) {
+  return device.device_code || `ID ${device.id || '--'}`
 }
 
 function isValidCoordinate(latitude, longitude) {
@@ -94,7 +107,7 @@ function MapAutoFit({ positions }) {
   return null
 }
 
-function DeviceMap({ devices = [] }) {
+function DeviceMap({ devices = [], onOpenDevice }) {
   const visibleDevices = useMemo(() => {
     return Array.isArray(devices) ? devices : []
   }, [devices])
@@ -137,22 +150,36 @@ function DeviceMap({ devices = [] }) {
 
         {devicesWithPositions.map(({ device, position }) => {
           const deviceName = getDeviceName(device)
+          const status = getStatus(device)
+          const statusLabel = getStatusLabel(status)
 
           return (
             <Marker
               key={device.id || device.device_code}
               position={position}
               icon={createDeviceIcon(device)}
-              interactive={false}
+              eventHandlers={
+                typeof onOpenDevice === 'function'
+                  ? {
+                      click: () => onOpenDevice(device.id),
+                    }
+                  : undefined
+              }
             >
               <Tooltip
                 permanent
                 direction="top"
-                offset={[0, -14]}
+                offset={[0, -16]}
                 opacity={1}
-                className="device-map-label"
+                className={`device-map-label ${status}`}
               >
-                {deviceName}
+                <div className="device-map-label-content">
+                  <strong>{deviceName}</strong>
+                  <span>{getDeviceCode(device)}</span>
+                  <em className={`device-map-label-status ${status}`}>
+                    {statusLabel}
+                  </em>
+                </div>
               </Tooltip>
             </Marker>
           )
